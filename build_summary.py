@@ -1,7 +1,7 @@
 """
 build_summary.py
 ────────────────
-Mevcut PIA_Elements_Report.xlsx dosyasını okur,
+Excel File klasöründeki dosyayı okur,
 tüm sayfa sheetlerini birleştirerek:
   - "Data"    → ham verinin tamamı (pivot için)
   - "Summary" → sayfa bazlı özet tablo
@@ -18,8 +18,8 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-# ── Ayarlar ──────────────────────────────────────────────────
-EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Elements_Report_IOS.xlsx"
+# ── Dosyanın olduğu konum ──────────────────────────────────────────────────
+EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Elements_Report_android.xlsx"
 
 # Bu sheetler sayfa verisi sayılmaz, atlanır
 SKIP_SHEETS = {"Data", "Summary"}

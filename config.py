@@ -1,16 +1,16 @@
 # ============================================================
-#  ACCESSIBILITY REPORTER — CONFIGURATION
+#  ELEMENTS REPORTER — CONFIGURATION
 # ============================================================
 
 # ------------------------------------------------------------
 # PLATFORM SEÇİMİ:  "ios"  veya  "android"
 # ------------------------------------------------------------
-PLATFORM = "android"
+PLATFORM = "ios"
 
 # Çıktı formatı: "word"  |  "excel"  |  "word+excel"
 OUTPUT_FORMAT = "word+excel"
 
-# Çıktı olarak alınacak ID ler (Çıktı bu sıraya göre oluşacaktır, istenilmeyen çıktı silinebilir)
+# Çıktı olarak alınacak ID ler (Çıktı bu sıraya göre oluşacaktır, istenilmeyen alanlar silinebilir)
 # Kullanılabilir değerler:
 #   "missing"   → Accessibility ID'si olmayan elementler
 #   "undefined" → ID var ama içinde "undefined" geçen (undefinedName, undefined_name vb.)
@@ -37,6 +37,14 @@ IOS = {
     "no_reset":         True,
 }
 
+# KZR IOS package ve activity
+
+# "bundle_id":        "test.kz.flyarystan",
+
+# PIA IOS package ve activity
+
+# "bundle_id":        "test.com.hitit.pia",
+
 # ------------------------------------------------------------
 # ANDROID AYARLARI  (PLATFORM = "android" ise geçerli)
 # ------------------------------------------------------------
@@ -48,12 +56,12 @@ ANDROID = {
     "no_reset":         True,
 }
 
-# KZR package ve activity
+# KZR Android package ve activity
 
 # app_package":      "test.kz.flyarystan",
 # "app_activity":     "kz.flyarystan.MainActivity",
 
-# PIA package ve activity
+# PIA Android package ve activity
 
 # app_package":      "test.com.piac.thepiaapp.android",
 # "app_activity":     "com.piamobile.MainActivity",
