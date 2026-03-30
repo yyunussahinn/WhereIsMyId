@@ -19,7 +19,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 # ── Ayarlar ──────────────────────────────────────────────────
-EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/PIA_Elements_Report_revize.xlsx"
+EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Elements_Report_IOS.xlsx"
 
 # Bu sheetler sayfa verisi sayılmaz, atlanır
 SKIP_SHEETS = {"Data", "Summary"}
