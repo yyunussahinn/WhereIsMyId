@@ -67,7 +67,6 @@ print(f"📄 Sayfa adı    : {PAGE_NAME}\n")
 
 # ========================
 # UNDEFINED ID KONTROLÜ
-# Sadece içinde "undefined" (büyük/küçük harf fark etmez) geçen ID'ler
 # ========================
 def is_undefined_id(name: str) -> bool:
     return "undefined" in name.lower()
@@ -209,6 +208,12 @@ STATUS_DUPLICATE = "Duplicate"
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
 
+# New Status — unique hariç hepsi bunu alır
+NEW_STATUS_WAITING = "ID Eklenecek (Waiting Dev)"
+
+def get_new_status(status: str) -> str:
+    return "" if status == STATUS_UNIQUE else NEW_STATUS_WAITING
+
 SECTION_TO_STATUS = {
     "missing":   STATUS_MISSING,
     "undefined": STATUS_UNDEFINED,
@@ -221,6 +226,10 @@ STATUS_PALETTE = {
     STATUS_UNDEFINED: {"hdr": "C55A11", "row": "FCE4D6", "alt": "FFF3EC", "txt": "412402"},
     STATUS_DUPLICATE: {"hdr": "7B3F00", "row": "FAEEDA", "alt": "FEF6E4", "txt": "3B1F00"},
     STATUS_UNIQUE:    {"hdr": "375623", "row": "E2EFDA", "alt": "EAF3DE", "txt": "173404"},
+}
+
+NEW_STATUS_COLOR = {
+    "hdr": "843C0C", "row": "FDE9D9", "alt": "FEF3EC", "txt": "843C0C",
 }
 
 # ========================
@@ -277,7 +286,7 @@ for elem_type in ALWAYS_INTERACTIVE + CONDITIONAL_INTERACTIVE:
                 "type":   stype,
                 "label":  display,
                 "value":  value,
-                "acc_id": "",          # boş — ID yok
+                "acc_id": "",
                 "status": STATUS_MISSING,
             })
 
@@ -299,7 +308,6 @@ grouped = {
 }
 
 def build_ordered_list():
-    """DOCUMENT_SECTIONS sırasına göre birleşik element listesi döner."""
     result = []
     for section_key in DOCUMENT_SECTIONS:
         result.extend(grouped[SECTION_TO_STATUS[section_key]])
@@ -333,16 +341,15 @@ def generate_word():
     def hex_to_rgb(h):
         return RGBColor(*bytes.fromhex(h))
 
-    COLS     = ["Page", "Type", "Label / Text", "Value", "Accessibility ID", "Status"]
-    COL_KEYS = ["page", "type", "label", "value", "acc_id", "status"]
-    WIDTHS   = [Inches(0.9), Inches(1.1), Inches(1.6), Inches(1.1), Inches(1.7), Inches(0.9)]
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Accessibility ID", "Status", "New Status"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
+    WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3), Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
 
     word_exists = os.path.exists(WORD_FILE)
     doc = Document(WORD_FILE) if word_exists else Document()
     if word_exists:
         doc.add_page_break()
 
-    # Başlık
     title = doc.add_heading(f"Accessibility ID Report — {PAGE_NAME}", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     date_para = doc.add_paragraph(
@@ -356,48 +363,61 @@ def generate_word():
         table = doc.add_table(rows=1, cols=len(COLS))
         table.style = "Table Grid"
 
-        # Header
         hdr = table.rows[0].cells
         for i, col_name in enumerate(COLS):
             hdr[i].text = col_name
             run = hdr[i].paragraphs[0].runs[0]
             run.bold = True
             run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            add_shading(hdr[i], "2C2C2A")
+            hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+            add_shading(hdr[i], hdr_color)
             hdr[i].width = WIDTHS[i]
 
-        # Veri satırları
         for idx, elem in enumerate(ordered):
-            status  = elem.get("status", STATUS_MISSING)
-            palette = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
-            row_hex = palette["row"] if idx % 2 == 0 else palette["alt"]
+            elem_id    = f"{PAGE_NAME}_element_{idx + 1}"
+            status     = elem.get("status", STATUS_MISSING)
+            new_status = get_new_status(status)
+            palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
+            row_hex    = palette["row"] if idx % 2 == 0 else palette["alt"]
+            ns_hex     = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
 
             row_cells = table.add_row().cells
             for i, key in enumerate(COL_KEYS):
-                val = elem.get(key, "") or ""
+                if key == "element_id":
+                    val = elem_id
+                elif key == "new_status":
+                    val = new_status
+                else:
+                    val = elem.get(key, "") or ""
+
                 row_cells[i].text  = val
                 row_cells[i].width = WIDTHS[i]
-                add_shading(row_cells[i], row_hex)
+
+                cell_hex = ns_hex if key == "new_status" else row_hex
+                add_shading(row_cells[i], cell_hex)
+
                 runs = row_cells[i].paragraphs[0].runs
-                if runs and key == "status":
-                    runs[0].bold            = True
-                    runs[0].font.color.rgb  = hex_to_rgb(palette["txt"])
+                if runs:
+                    if key == "status":
+                        runs[0].bold           = True
+                        runs[0].font.color.rgb = hex_to_rgb(palette["txt"])
+                    elif key == "new_status" and new_status:
+                        runs[0].bold           = True
+                        runs[0].font.color.rgb = hex_to_rgb(NEW_STATUS_COLOR["txt"])
 
     doc.add_paragraph("")
 
-    # Ekran görüntüsü
     if os.path.exists(SCREENSHOT_PATH):
         doc.add_heading("📸 Ekran Görüntüsü", level=2)
         with PILImage.open(SCREENSHOT_PATH) as img:
             w_px, h_px = img.size
         max_w_in = 5.5
         w_in     = min(w_px / 96, max_w_in)
-        h_in     = (h_px / 96) * (w_in / (w_px / 96))
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.add_run().add_picture(SCREENSHOT_PATH, width=Inches(w_in))
         cap = doc.add_paragraph(f"{PAGE_NAME} sayfası ekran görüntüsü")
-        cap.alignment  = WD_ALIGN_PARAGRAPH.CENTER
+        cap.alignment         = WD_ALIGN_PARAGRAPH.CENTER
         cap.runs[0].font.size = Pt(9)
         cap.runs[0].italic    = True
 
@@ -419,12 +439,12 @@ def generate_excel():
     LEFT     = Alignment(horizontal="left",   vertical="center", wrap_text=True)
     HDR_FONT = Font(bold=True, color="FFFFFF", size=10)
 
-    COLS     = ["Page", "Type", "Label / Text", "Value", "Accessibility ID", "Status"]
-    COL_KEYS = ["page", "type", "label", "value", "acc_id", "status"]
-    WIDTHS   = [16, 16, 26, 18, 32, 14]   # karakter
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Accessibility ID", "Status", "New Status"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
+    WIDTHS   = [22, 16, 16, 26, 18, 32, 14, 28]
 
-    DATA_COL_COUNT = len(COLS)             # 6 sütun veri (A–F)
-    IMG_COL        = DATA_COL_COUNT + 2    # H sütunu (G boşluk)
+    DATA_COL_COUNT = len(COLS)
+    IMG_COL        = DATA_COL_COUNT + 2
     IMG_COL_LTR    = get_column_letter(IMG_COL)
 
     excel_exists = os.path.exists(EXCEL_FILE)
@@ -435,7 +455,6 @@ def generate_excel():
         del wb[PAGE_NAME]
     ws = wb.create_sheet(title=PAGE_NAME)
 
-    # ── Başlık satırı (row 1)
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=DATA_COL_COUNT)
     c = ws.cell(row=1, column=1,
                 value=f"{PAGE_NAME}  |  "
@@ -446,47 +465,67 @@ def generate_excel():
     c.border    = BORDER
     ws.row_dimensions[1].height = 26
 
-    # ── Tablo header (row 2)
     for ci, col_name in enumerate(COLS, 1):
         c = ws.cell(row=2, column=ci, value=col_name)
         c.font      = HDR_FONT
-        c.fill      = PatternFill("solid", fgColor="2C2C2A")
+        hdr_color   = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+        c.fill      = PatternFill("solid", fgColor=hdr_color)
         c.alignment = CENTER
         c.border    = BORDER
     ws.row_dimensions[2].height = 18
     ws.freeze_panes = "A3"
 
-    # ── Veri satırları (row 3+)
     ordered    = build_ordered_list()
     data_start = 3
 
     for idx, elem in enumerate(ordered):
-        row_num = data_start + idx
-        status  = elem.get("status", STATUS_MISSING)
-        palette = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
+        elem_id    = f"{PAGE_NAME}_element_{idx + 1}"
+        status     = elem.get("status", STATUS_MISSING)
+        new_status = get_new_status(status)
+
+        row_num  = data_start + idx
+        palette  = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
         row_fill = PatternFill("solid", fgColor=palette["row"] if idx % 2 == 0 else palette["alt"])
+        ns_fill  = PatternFill("solid", fgColor=NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"])
 
         for ci, key in enumerate(COL_KEYS, 1):
-            val = elem.get(key, "") or ""
-            c   = ws.cell(row=row_num, column=ci, value=val)
-            c.fill   = row_fill
+            if key == "element_id":
+                val = elem_id
+            elif key == "new_status":
+                val = new_status
+            else:
+                val = elem.get(key, "") or ""
+
+            c = ws.cell(row=row_num, column=ci, value=val)
             c.border = BORDER
-            if key == "status":
+
+            if key == "new_status":
+                c.fill = ns_fill
+                if new_status:
+                    c.font      = Font(bold=True, color=NEW_STATUS_COLOR["txt"], size=10)
+                    c.alignment = CENTER
+                else:
+                    c.font      = Font(size=10)
+                    c.alignment = CENTER
+            elif key == "status":
+                c.fill      = row_fill
                 c.font      = Font(bold=True, color=palette["txt"], size=10)
                 c.alignment = CENTER
+            elif key == "element_id":
+                c.fill      = row_fill
+                c.font      = Font(bold=True, size=10)
+                c.alignment = CENTER
             else:
+                c.fill      = row_fill
                 c.font      = Font(size=10)
                 c.alignment = LEFT
+
         ws.row_dimensions[row_num].height = 16
 
-    # Kolon genişlikleri
     for ci, w in enumerate(WIDTHS, 1):
         ws.column_dimensions[get_column_letter(ci)].width = w
 
-    # ── Screenshot — G sütununa başlık, H sütunundan görsel
     if os.path.exists(SCREENSHOT_PATH):
-
-        # Görseli ölçekle
         with PILImage.open(SCREENSHOT_PATH) as img:
             orig_w, orig_h = img.size
         target_w = 300
@@ -497,22 +536,19 @@ def generate_excel():
         with PILImage.open(SCREENSHOT_PATH) as img:
             img.resize((target_w, target_h), PILImage.LANCZOS).save(tmp_path, format="PNG")
 
-        # G sütunu: başlık hücresi (row 1–2 merge)
-        gap_col     = DATA_COL_COUNT + 1          # G
+        gap_col     = DATA_COL_COUNT + 1
         gap_col_ltr = get_column_letter(gap_col)
-        ws.column_dimensions[gap_col_ltr].width = 2   # ince boşluk
+        ws.column_dimensions[gap_col_ltr].width = 2
 
         ws.merge_cells(start_row=1, start_column=IMG_COL,
                        end_row=2,   end_column=IMG_COL)
-        hdr_c = ws.cell(row=1, column=IMG_COL,
-                        value=f"📸 {PAGE_NAME}")
+        hdr_c = ws.cell(row=1, column=IMG_COL, value=f"📸 {PAGE_NAME}")
         hdr_c.font      = HDR_FONT
         hdr_c.fill      = PatternFill("solid", fgColor="1F3864")
         hdr_c.alignment = CENTER
         hdr_c.border    = BORDER
         ws.column_dimensions[IMG_COL_LTR].width = 42
 
-        # Görseli H3'e anchor'la
         xl_img        = XLImage(tmp_path)
         xl_img.width  = target_w
         xl_img.height = target_h
@@ -521,7 +557,6 @@ def generate_excel():
     wb.save(EXCEL_FILE)
     print(f"📊 Excel kaydedildi: {EXCEL_FILE}  (sheet: {PAGE_NAME})")
 
-    # Geçici dosyayı wb.save() sonrasında temizle
     if os.path.exists(SCREENSHOT_PATH):
         try:
             os.remove(tmp_path)

@@ -87,21 +87,10 @@ options.no_reset         = apk["no_reset"]
 
 # ========================
 # ANDROID ELEMENT KURALLARI
-#
-# Kural: resource-id varsa → ID kabul edilir
-#        resource-id yoksa → ID Yok
-#        content-desc / text → Label olarak gösterilir
-#
-# Sadece gerçekten interaktif (tıklanabilir) elementler alınır.
-# TextView gibi salt-metin tipler kapsama dahil değildir.
 # ========================
-
-# Tip kısaltma: "android.view.ViewGroup" → "ViewGroup"
 def short_type(t):
     return t.split(".")[-1]
 
-# resource-id'nin kısa adı: "com.pkg:id/btn_ok" → "btn_ok"
-# "null" string'i ve boş değerler temizlenir
 def get_resource_id(el):
     rid = el.get_attribute("resource-id") or ""
     rid = rid.strip()
@@ -110,7 +99,6 @@ def get_resource_id(el):
     return rid.split("/")[-1] if "/" in rid else rid
 
 def _clean(val):
-    """'null', 'none' string değerlerini boşluğa çevirir."""
     v = (val or "").strip()
     return "" if v.lower() in ("null", "none") else v
 
@@ -127,9 +115,6 @@ def get_detected_page(driver):
     except Exception:
         return ""
 
-# ── Interaktif element kriterleri ──────────────────────────
-#
-# ALWAYS: Bu tipler her zaman alınır (clickable'dan bağımsız)
 ALWAYS_INTERACTIVE = [
     "android.widget.EditText",
     "android.widget.Button",
@@ -140,7 +125,6 @@ ALWAYS_INTERACTIVE = [
     "android.widget.Spinner",
 ]
 
-# CONDITIONAL: Sadece clickable="true" VEYA resource-id varsa alınır
 CONDITIONAL_INTERACTIVE = [
     "android.view.View",
     "android.view.ViewGroup",
@@ -150,7 +134,6 @@ CONDITIONAL_INTERACTIVE = [
     "android.widget.ImageView",
 ]
 
-# TextView özeldir: sadece resource-id'si varsa alınır (salt-metin olanlar hariç)
 RESOURCE_ID_ONLY = [
     "android.widget.TextView",
 ]
@@ -161,7 +144,6 @@ def is_interactive(el, elem_type):
     if elem_type in ALWAYS_INTERACTIVE:
         return True
     if elem_type in RESOURCE_ID_ONLY:
-        # TextView: sadece resource-id varsa
         return bool(get_resource_id(el))
     if elem_type in CONDITIONAL_INTERACTIVE:
         clickable  = el.get_attribute("clickable") == "true"
@@ -177,6 +159,13 @@ STATUS_DUPLICATE = "Duplicate"
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
 
+# New Status değeri — unique hariç hepsi bunu alır
+NEW_STATUS_WAITING = "ID Eklenecek (Waiting Dev)"
+NEW_STATUS_EMPTY   = ""
+
+def get_new_status(status: str) -> str:
+    return NEW_STATUS_EMPTY if status == STATUS_UNIQUE else NEW_STATUS_WAITING
+
 SECTION_TO_STATUS = {
     "missing":   STATUS_MISSING,
     "undefined": STATUS_UNDEFINED,
@@ -189,6 +178,14 @@ STATUS_PALETTE = {
     STATUS_UNDEFINED: {"hdr": "C55A11", "row": "FCE4D6", "alt": "FFF3EC", "txt": "412402"},
     STATUS_DUPLICATE: {"hdr": "7B3F00", "row": "FAEEDA", "alt": "FEF6E4", "txt": "3B1F00"},
     STATUS_UNIQUE:    {"hdr": "375623", "row": "E2EFDA", "alt": "EAF3DE", "txt": "173404"},
+}
+
+# New Status sütunu için sabit renk (turuncu tonları — "bekliyor" hissi)
+NEW_STATUS_COLOR = {
+    "hdr": "843C0C",   # koyu turuncu — header
+    "row": "FDE9D9",   # açık turuncu — tek satır
+    "alt": "FEF3EC",   # daha açık — çift satır
+    "txt": "843C0C",   # yazı rengi
 }
 
 # ========================
@@ -221,15 +218,11 @@ for elem_type in ALL_TYPES:
             value = get_value(el)
             stype = short_type(elem_type)
         except Exception:
-            # StaleElementReferenceException — DOM değişti, elementi atla
             continue
 
-        # Gerçek içeriği olmayan wrapper/container'ları filtrele:
-        # resource-id yoksa en az label veya value dolu olmalı
         if not rid and not label and not value:
             continue
 
-        # Android kuralı: resource-id varsa ID kabul edilir
         if rid:
             if is_undefined_id(rid):
                 all_elements.append({
@@ -249,7 +242,6 @@ for elem_type in ALL_TYPES:
                     "acc_id": rid,
                 })
         else:
-            # resource-id yok → ID Yok
             all_elements.append({
                 "page":   detected_page,
                 "type":   stype,
@@ -310,9 +302,9 @@ def generate_word():
     def hex_to_rgb(h):
         return RGBColor(*bytes.fromhex(h))
 
-    COLS     = ["Page", "Type", "Label / Text", "Value", "Resource ID", "Status"]
-    COL_KEYS = ["page", "type", "label", "value", "acc_id", "status"]
-    WIDTHS   = [Inches(0.9), Inches(1.1), Inches(1.6), Inches(1.1), Inches(1.7), Inches(0.9)]
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
+    WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3), Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
 
     word_exists = os.path.exists(WORD_FILE)
     doc = Document(WORD_FILE) if word_exists else Document()
@@ -337,23 +329,45 @@ def generate_word():
             run = hdr[i].paragraphs[0].runs[0]
             run.bold = True
             run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            add_shading(hdr[i], "2C2C2A")
+            # New Status header'ı farklı renk
+            hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+            add_shading(hdr[i], hdr_color)
             hdr[i].width = WIDTHS[i]
 
         for idx, elem in enumerate(ordered):
-            status  = elem.get("status", STATUS_MISSING)
-            palette = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
-            row_hex = palette["row"] if idx % 2 == 0 else palette["alt"]
+            elem_id    = f"{PAGE_NAME}_element_{idx + 1}"
+            status     = elem.get("status", STATUS_MISSING)
+            new_status = get_new_status(status)
+            palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
+            row_hex    = palette["row"] if idx % 2 == 0 else palette["alt"]
+
+            # New Status için kendi satır rengi
+            ns_hex = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
+
             row_cells = table.add_row().cells
             for i, key in enumerate(COL_KEYS):
-                val = elem.get(key, "") or ""
+                if key == "element_id":
+                    val = elem_id
+                elif key == "new_status":
+                    val = new_status
+                else:
+                    val = elem.get(key, "") or ""
+
                 row_cells[i].text  = val
                 row_cells[i].width = WIDTHS[i]
-                add_shading(row_cells[i], row_hex)
+
+                # New Status sütununa kendi arka plan rengi
+                cell_hex = ns_hex if key == "new_status" else row_hex
+                add_shading(row_cells[i], cell_hex)
+
                 runs = row_cells[i].paragraphs[0].runs
-                if runs and key == "status":
-                    runs[0].bold           = True
-                    runs[0].font.color.rgb = hex_to_rgb(palette["txt"])
+                if runs:
+                    if key == "status":
+                        runs[0].bold           = True
+                        runs[0].font.color.rgb = hex_to_rgb(palette["txt"])
+                    elif key == "new_status" and new_status:
+                        runs[0].bold           = True
+                        runs[0].font.color.rgb = hex_to_rgb(NEW_STATUS_COLOR["txt"])
 
     doc.add_paragraph("")
 
@@ -389,9 +403,9 @@ def generate_excel():
     LEFT     = Alignment(horizontal="left",   vertical="center", wrap_text=True)
     HDR_FONT = Font(bold=True, color="FFFFFF", size=10)
 
-    COLS     = ["Page", "Type", "Label / Text", "Value", "Resource ID", "Status"]
-    COL_KEYS = ["page", "type", "label", "value", "acc_id", "status"]
-    WIDTHS   = [16, 16, 26, 18, 32, 14]
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
+    WIDTHS   = [22, 16, 16, 26, 18, 32, 14, 28]
 
     DATA_COL_COUNT = len(COLS)
     IMG_COL        = DATA_COL_COUNT + 2
@@ -417,7 +431,9 @@ def generate_excel():
     for ci, col_name in enumerate(COLS, 1):
         c = ws.cell(row=2, column=ci, value=col_name)
         c.font      = HDR_FONT
-        c.fill      = PatternFill("solid", fgColor="2C2C2A")
+        # New Status header'ı farklı renk
+        hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+        c.fill      = PatternFill("solid", fgColor=hdr_color)
         c.alignment = CENTER
         c.border    = BORDER
     ws.row_dimensions[2].height = 18
@@ -427,22 +443,47 @@ def generate_excel():
     data_start = 3
 
     for idx, elem in enumerate(ordered):
-        row_num = data_start + idx
-        status  = elem.get("status", STATUS_MISSING)
-        palette = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
+        elem_id    = f"{PAGE_NAME}_element_{idx + 1}"
+        status     = elem.get("status", STATUS_MISSING)
+        new_status = get_new_status(status)
+
+        row_num  = data_start + idx
+        palette  = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
         row_fill = PatternFill("solid", fgColor=palette["row"] if idx % 2 == 0 else palette["alt"])
+        ns_fill  = PatternFill("solid", fgColor=NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"])
 
         for ci, key in enumerate(COL_KEYS, 1):
-            val = elem.get(key, "") or ""
-            c   = ws.cell(row=row_num, column=ci, value=val)
-            c.fill   = row_fill
+            if key == "element_id":
+                val = elem_id
+            elif key == "new_status":
+                val = new_status
+            else:
+                val = elem.get(key, "") or ""
+
+            c = ws.cell(row=row_num, column=ci, value=val)
             c.border = BORDER
-            if key == "status":
+
+            if key == "new_status":
+                c.fill = ns_fill
+                if new_status:
+                    c.font      = Font(bold=True, color=NEW_STATUS_COLOR["txt"], size=10)
+                    c.alignment = CENTER
+                else:
+                    c.font      = Font(size=10)
+                    c.alignment = CENTER
+            elif key == "status":
+                c.fill      = row_fill
                 c.font      = Font(bold=True, color=palette["txt"], size=10)
                 c.alignment = CENTER
+            elif key == "element_id":
+                c.fill      = row_fill
+                c.font      = Font(bold=True, size=10)
+                c.alignment = CENTER
             else:
+                c.fill      = row_fill
                 c.font      = Font(size=10)
                 c.alignment = LEFT
+
         ws.row_dimensions[row_num].height = 16
 
     for ci, w in enumerate(WIDTHS, 1):
