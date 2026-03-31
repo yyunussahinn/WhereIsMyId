@@ -1,6 +1,5 @@
 import time
 import os
-import re
 from datetime import datetime
 from collections import Counter
 
@@ -37,15 +36,12 @@ if missing_deps:
 # ========================
 import config as cfg
 
-PLATFORM          = cfg.PLATFORM.strip().lower()
 OUTPUT_FMT        = cfg.OUTPUT_FORMAT.strip().lower()
 OUTPUT_DIR        = cfg.OUTPUT_DIR
 APPIUM_SERVER     = cfg.APPIUM_SERVER
 DOCUMENT_SECTIONS = [s.strip().lower() for s in cfg.DOCUMENT_SECTIONS]
 
 VALID_SECTIONS = {"missing", "undefined", "duplicate", "unique"}
-if PLATFORM not in ("ios", "android"):
-    raise ValueError(f"config.py — Geçersiz PLATFORM: '{PLATFORM}'")
 if OUTPUT_FMT not in ("word", "excel", "word+excel"):
     raise ValueError(f"config.py — Geçersiz OUTPUT_FORMAT: '{OUTPUT_FMT}'")
 for s in DOCUMENT_SECTIONS:
@@ -61,144 +57,115 @@ SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 
-print(f"\n🔧 Platform     : {PLATFORM.upper()}")
+PLATFORM = "ios"
+
+print(f"\n🔧 Platform     : iOS")
 print(f"📁 Çıktı formatı: {OUTPUT_FMT}")
 print(f"📄 Sayfa adı    : {PAGE_NAME}\n")
+
+# ========================
+# APPIUM OPTIONS
+# ========================
+from appium.options.ios import XCUITestOptions
+
+ios     = cfg.IOS
+options = XCUITestOptions()
+options.platform_name    = "iOS"
+options.device_name      = ios["device_name"]
+options.platform_version = ios["platform_version"]
+options.automation_name  = "XCUITest"
+options.bundle_id        = ios["bundle_id"]
+options.no_reset         = ios["no_reset"]
+options.udid             = ios["udid"]
+
+# ========================
+# ELEMENT TİPLERİ
+# ========================
+ALWAYS_INTERACTIVE = [
+    "XCUIElementTypeTextField",
+    "XCUIElementTypeSecureTextField",
+    "XCUIElementTypeButton",
+    "XCUIElementTypeCell",
+]
+CONDITIONAL_INTERACTIVE = ["XCUIElementTypeOther"]
+
+# ========================
+# YARDIMCI FONKSİYONLAR
+# ========================
+def is_interactive(el, elem_type):
+    if elem_type in ALWAYS_INTERACTIVE:
+        return True
+    if elem_type in CONDITIONAL_INTERACTIVE:
+        return el.get_attribute("accessible") == "true"
+    return False
+
+def get_name(el):  return el.get_attribute("name")  or ""
+def get_label(el): return el.get_attribute("label") or ""
+def get_value(el): return el.get_attribute("value") or ""
+def short_type(t): return t.replace("XCUIElementType", "")
+
+def get_detected_page(driver):
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(driver.page_source)
+        for tag in ["XCUIElementTypeNavigationBar", "XCUIElementTypeStaticText"]:
+            el = root.find(f".//{tag}")
+            if el is not None:
+                lbl = el.get("label") or el.get("name") or ""
+                if lbl:
+                    return lbl
+    except Exception:
+        pass
+    return ""
+
+def find_by_acc_id(driver, name):
+    try:
+        driver.find_element(AppiumBy.ACCESSIBILITY_ID, name)
+        return True
+    except Exception:
+        return False
+
+def has_real_id(driver, name, label):
+    return (
+        name != ""
+        and name != label
+        and not name.startswith("__")
+        and find_by_acc_id(driver, name)
+    )
+
+# ========================
+# EKRAN FİLTRESİ
+# ========================
+def get_screen_size(driver):
+    size = driver.get_window_size()
+    return size["width"], size["height"]
+
+def is_visible_or_scrollable(el, screen_w, screen_h):
+    """
+    Hamburger menü gibi ekran dışına kaymış (x >= screen_w) elementleri eler.
+    Scroll içinde kalan ama henüz görünmeyen inputları korur.
+    """
+    try:
+        rect = el.rect
+        x = rect.get("x", 0)
+        y = rect.get("y", 0)
+        w = rect.get("width", 0)
+        h = rect.get("height", 0)
+        if w <= 0 or h <= 0:
+            return False
+        if x >= screen_w:       # ekranın sağına taşmış (hamburger menü)
+            return False
+        if x + w <= 0:          # ekranın soluna taşmış
+            return False
+        return True
+    except Exception:
+        return False
 
 # ========================
 # UNDEFINED ID KONTROLÜ
 # ========================
 def is_undefined_id(name: str) -> bool:
-    return "undefined" in name.lower()
-
-# ========================
-# PLATFORM OPTIONS
-# ========================
-if PLATFORM == "ios":
-    from appium.options.ios import XCUITestOptions
-    ios     = cfg.IOS
-    options = XCUITestOptions()
-    options.platform_name    = "iOS"
-    options.device_name      = ios["device_name"]
-    options.platform_version = ios["platform_version"]
-    options.automation_name  = "XCUITest"
-    options.bundle_id        = ios["bundle_id"]
-    options.no_reset         = ios["no_reset"]
-    options.udid             = ios["udid"]
-else:
-    from appium.options.android import UiAutomator2Options
-    apk     = cfg.ANDROID
-    options = UiAutomator2Options()
-    options.platform_name    = "Android"
-    options.device_name      = apk["device_name"]
-    options.platform_version = apk["platform_version"]
-    options.automation_name  = "UiAutomator2"
-    options.app_package      = apk["app_package"]
-    options.app_activity     = apk["app_activity"]
-    options.no_reset         = apk["no_reset"]
-
-# ========================
-# ELEMENT TİPLERİ & YARDIMCILAR
-# ========================
-if PLATFORM == "ios":
-    ALWAYS_INTERACTIVE      = [
-        "XCUIElementTypeTextField",
-        "XCUIElementTypeSecureTextField",
-        "XCUIElementTypeButton",
-        "XCUIElementTypeCell",
-    ]
-    CONDITIONAL_INTERACTIVE = ["XCUIElementTypeOther"]
-
-    def is_interactive(el, elem_type):
-        if elem_type in ALWAYS_INTERACTIVE:
-            return True
-        if elem_type in CONDITIONAL_INTERACTIVE:
-            return el.get_attribute("accessible") == "true"
-        return False
-
-    def get_name(el):  return el.get_attribute("name")  or ""
-    def get_label(el): return el.get_attribute("label") or ""
-    def get_value(el): return el.get_attribute("value") or ""
-    def short_type(t): return t.replace("XCUIElementType", "")
-
-    def get_detected_page(driver):
-        try:
-            import xml.etree.ElementTree as ET
-            root = ET.fromstring(driver.page_source)
-            for tag in ["XCUIElementTypeNavigationBar", "XCUIElementTypeStaticText"]:
-                el = root.find(f".//{tag}")
-                if el is not None:
-                    lbl = el.get("label") or el.get("name") or ""
-                    if lbl:
-                        return lbl
-        except Exception:
-            pass
-        return ""
-
-    def find_by_acc_id(driver, name):
-        try:
-            driver.find_element(AppiumBy.ACCESSIBILITY_ID, name)
-            return True
-        except Exception:
-            return False
-
-    def has_real_id(driver, name, label):
-        return (
-            name != ""
-            and name != label
-            and not name.startswith("__")
-            and find_by_acc_id(driver, name)
-        )
-
-else:
-    ALWAYS_INTERACTIVE      = [
-        "android.widget.EditText",
-        "android.widget.Button",
-        "android.widget.ImageButton",
-        "android.widget.CheckBox",
-        "android.widget.RadioButton",
-        "android.widget.Switch",
-        "android.widget.Spinner",
-    ]
-    CONDITIONAL_INTERACTIVE = [
-        "android.view.View",
-        "android.widget.FrameLayout",
-        "android.widget.LinearLayout",
-        "android.widget.RelativeLayout",
-    ]
-
-    def is_interactive(el, elem_type):
-        if elem_type in ALWAYS_INTERACTIVE:
-            return True
-        if elem_type in CONDITIONAL_INTERACTIVE:
-            return el.get_attribute("clickable") == "true"
-        return False
-
-    def get_name(el):  return el.get_attribute("content-desc") or el.get_attribute("resource-id") or ""
-    def get_label(el): return el.get_attribute("text") or el.get_attribute("content-desc") or ""
-    def get_value(el): return el.get_attribute("text") or ""
-    def short_type(t): return t.split(".")[-1]
-
-    def get_detected_page(driver):
-        try:
-            activity = driver.current_activity or ""
-            return activity.split(".")[-1] if activity else ""
-        except Exception:
-            return ""
-
-    def find_by_acc_id(driver, name):
-        try:
-            driver.find_element(AppiumBy.ACCESSIBILITY_ID, name)
-            return True
-        except Exception:
-            return False
-
-    def has_real_id(driver, name, label):
-        return (
-            name != ""
-            and name != label
-            and find_by_acc_id(driver, name)
-        )
+    return "undefined" in name.lower() or name.startswith("__")
 
 # ========================
 # STATUS SABİTLERİ
@@ -208,7 +175,6 @@ STATUS_DUPLICATE = "Duplicate"
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
 
-# New Status — unique hariç hepsi bunu alır
 NEW_STATUS_WAITING = "ID Eklenecek (Waiting Dev)"
 
 def get_new_status(status: str) -> str:
@@ -248,6 +214,8 @@ print(f"   → Tespit edilen sayfa: {detected_page or '(bulunamadı)'}")
 
 print("🔍 Elementler taranıyor...")
 
+screen_w, screen_h = get_screen_size(driver)
+
 all_elements = []
 candidates   = []
 
@@ -256,6 +224,9 @@ for elem_type in ALWAYS_INTERACTIVE + CONDITIONAL_INTERACTIVE:
     for el in elems:
         if not is_interactive(el, elem_type):
             continue
+        if not is_visible_or_scrollable(el, screen_w, screen_h):
+            continue
+
         name    = get_name(el)
         label   = get_label(el)
         value   = get_value(el)
@@ -353,7 +324,7 @@ def generate_word():
     title = doc.add_heading(f"Accessibility ID Report — {PAGE_NAME}", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     date_para = doc.add_paragraph(
-        f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}  |  Platform: {PLATFORM.upper()}"
+        f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}  |  Platform: iOS"
     )
     date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph("")
@@ -457,8 +428,7 @@ def generate_excel():
 
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=DATA_COL_COUNT)
     c = ws.cell(row=1, column=1,
-                value=f"{PAGE_NAME}  |  "
-                      f"{datetime.now().strftime('%d.%m.%Y %H:%M')}  |  {PLATFORM.upper()}")
+                value=f"{PAGE_NAME}  |  {datetime.now().strftime('%d.%m.%Y %H:%M')}  |  iOS")
     c.font      = Font(bold=True, color="FFFFFF", size=13)
     c.fill      = PatternFill("solid", fgColor="1F3864")
     c.alignment = CENTER
