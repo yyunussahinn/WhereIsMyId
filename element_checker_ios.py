@@ -53,7 +53,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 PAGE_NAME       = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_IOS.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_IOS.xlsx")
-SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots")
+SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_ios")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 

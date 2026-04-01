@@ -40,6 +40,7 @@ OUTPUT_FMT        = cfg.OUTPUT_FORMAT.strip().lower()
 OUTPUT_DIR        = cfg.OUTPUT_DIR
 APPIUM_SERVER     = cfg.APPIUM_SERVER
 DOCUMENT_SECTIONS = [s.strip().lower() for s in cfg.DOCUMENT_SECTIONS]
+RESOURCE_ID_BLACKLIST = set(cfg.BLACKLIST_IDS)
 
 VALID_SECTIONS = {"missing", "undefined", "duplicate", "unique"}
 if OUTPUT_FMT not in ("word", "excel", "word+excel"):
@@ -53,7 +54,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 PAGE_NAME       = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_Android.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_Android.xlsx")
-SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots")
+SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_android")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 
@@ -151,6 +152,18 @@ def is_interactive(el, elem_type):
         return clickable or has_res_id
     return False
 
+def is_blacklisted_id(rid: str) -> bool:
+    """
+    True döner → element listeye HİÇ girmez.
+    Kural 1: Sabit blacklist seti
+    Kural 2: __ ile başlayan ve __ ile biten (örn. __CAROUSEL_ITEM_1__)
+    """
+    if rid in RESOURCE_ID_BLACKLIST:
+        return True
+    if rid.startswith("__") and rid.endswith("__"):
+        return True
+    return False
+
 # ========================
 # STATUS SABİTLERİ
 # ========================
@@ -224,6 +237,8 @@ for elem_type in ALL_TYPES:
             continue
 
         if rid:
+            if is_blacklisted_id(rid):
+                continue
             if is_undefined_id(rid):
                 all_elements.append({
                     "page":   detected_page,

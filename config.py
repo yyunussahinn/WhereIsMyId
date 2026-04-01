@@ -5,7 +5,14 @@
 # ------------------------------------------------------------
 # PLATFORM SEÇİMİ:  "ios"  veya  "android"
 # ------------------------------------------------------------
-PLATFORM = "ios"
+PLATFORM = "android"
+
+BLACKLIST_IDS = [
+    "statusBarBackground",
+    "content",
+    "action_bar_root",
+    "navigationBarBackground"
+]
 
 # Çıktı formatı: "word"  |  "excel"  |  "word+excel"
 OUTPUT_FORMAT = "word+excel"
