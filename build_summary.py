@@ -21,7 +21,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 # ── Dosyanın olduğu konum ──────────────────────────────────────────────────
-EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Elements_Report_IOS.xlsx"
+EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Revize_Elements_Report_Android.xlsx"
 
 SKIP_SHEETS    = {"Data", "Summary", "Task"}
 DATA_START_ROW = 3

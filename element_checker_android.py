@@ -40,6 +40,7 @@ OUTPUT_FMT        = cfg.OUTPUT_FORMAT.strip().lower()
 OUTPUT_DIR        = cfg.OUTPUT_DIR
 APPIUM_SERVER     = cfg.APPIUM_SERVER
 DOCUMENT_SECTIONS = [s.strip().lower() for s in cfg.DOCUMENT_SECTIONS]
+RESOURCE_ID_BLACKLIST = set(cfg.BLACKLIST_IDS)
 
 VALID_SECTIONS = {"missing", "undefined", "duplicate", "unique"}
 if OUTPUT_FMT not in ("word", "excel", "word+excel"):
@@ -50,14 +51,55 @@ for s in DOCUMENT_SECTIONS:
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-PAGE_NAME       = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
+# ========================
+# SAYFA ADI & ÜZERINE YAZMA ONAYI
+# ========================
+def ask_overwrite(label: str) -> bool:
+    """
+    Kullanıcıdan evet/hayır onayı alır.
+    evet / e / yes / y  → True
+    hayır / h / no / n  → False
+    Geçersiz giriş olursa tekrar sorar.
+    """
+    while True:
+        answer = input(f"   ⚠️  {label} zaten mevcut. Üzerine yazmak istiyor musunuz? [e/h]: ").strip().lower()
+        if answer in ("e", "evet", "y", "yes"):
+            return True
+        if answer in ("h", "hayır", "n", "no"):
+            return False
+        print("   Lütfen 'e' (evet) veya 'h' (hayır) girin.")
+
+PAGE_NAME = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
+
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_Android.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_Android.xlsx")
-SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots")
+SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_android")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 
 PLATFORM = "android"
+
+# ---------- Word dosyası kontrolü ----------
+WORD_OVERWRITE = True   # varsayılan: dosya yoksa sorun yok
+if OUTPUT_FMT in ("word", "word+excel") and os.path.exists(WORD_FILE):
+    WORD_OVERWRITE = ask_overwrite(f"Word dosyası '{os.path.basename(WORD_FILE)}'")
+    if not WORD_OVERWRITE:
+        print("\n🚫 İşlem iptal edildi. Farklı bir sayfa adıyla tekrar çalıştırın.\n")
+        raise SystemExit(0)
+
+# ---------- Excel sheet kontrolü ----------
+EXCEL_SHEET_OVERWRITE = True   # varsayılan: sheet yoksa sorun yok
+if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
+    try:
+        _wb_check = openpyxl.load_workbook(EXCEL_FILE, read_only=True)
+        if PAGE_NAME in _wb_check.sheetnames:
+            EXCEL_SHEET_OVERWRITE = ask_overwrite(f"Excel sheet '{PAGE_NAME}'")
+            if not EXCEL_SHEET_OVERWRITE:
+                print("\n🚫 İşlem iptal edildi. Farklı bir sayfa adıyla tekrar çalıştırın.\n")
+                raise SystemExit(0)
+        _wb_check.close()
+    except Exception:
+        pass  # Excel dosyası okunamazsa kontrolü atla, generate_excel hata verir zaten
 
 print(f"\n🔧 Platform     : ANDROID")
 print(f"📁 Çıktı formatı: {OUTPUT_FMT}")
@@ -151,6 +193,13 @@ def is_interactive(el, elem_type):
         return clickable or has_res_id
     return False
 
+def is_blacklisted_id(rid: str) -> bool:
+    if rid in RESOURCE_ID_BLACKLIST:
+        return True
+    if rid.startswith("__") and rid.endswith("__"):
+        return True
+    return False
+
 # ========================
 # STATUS SABİTLERİ
 # ========================
@@ -159,7 +208,6 @@ STATUS_DUPLICATE = "Duplicate"
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
 
-# New Status değeri — unique hariç hepsi bunu alır
 NEW_STATUS_WAITING = "ID Eklenecek (Waiting Dev)"
 NEW_STATUS_EMPTY   = ""
 
@@ -180,12 +228,11 @@ STATUS_PALETTE = {
     STATUS_UNIQUE:    {"hdr": "375623", "row": "E2EFDA", "alt": "EAF3DE", "txt": "173404"},
 }
 
-# New Status sütunu için sabit renk (turuncu tonları — "bekliyor" hissi)
 NEW_STATUS_COLOR = {
-    "hdr": "843C0C",   # koyu turuncu — header
-    "row": "FDE9D9",   # açık turuncu — tek satır
-    "alt": "FEF3EC",   # daha açık — çift satır
-    "txt": "843C0C",   # yazı rengi
+    "hdr": "843C0C",
+    "row": "FDE9D9",
+    "alt": "FEF3EC",
+    "txt": "843C0C",
 }
 
 # ========================
@@ -224,6 +271,8 @@ for elem_type in ALL_TYPES:
             continue
 
         if rid:
+            if is_blacklisted_id(rid):
+                continue
             if is_undefined_id(rid):
                 all_elements.append({
                     "page":   detected_page,
@@ -306,10 +355,10 @@ def generate_word():
     COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
     WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3), Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
 
-    word_exists = os.path.exists(WORD_FILE)
-    doc = Document(WORD_FILE) if word_exists else Document()
-    if word_exists:
-        doc.add_page_break()
+    # Onay önceden alındı: dosya varsa sil, sıfırdan oluştur
+    if os.path.exists(WORD_FILE):
+        os.remove(WORD_FILE)
+    doc = Document()
 
     title = doc.add_heading(f"Accessibility Report — {PAGE_NAME}", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -329,7 +378,6 @@ def generate_word():
             run = hdr[i].paragraphs[0].runs[0]
             run.bold = True
             run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            # New Status header'ı farklı renk
             hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
             add_shading(hdr[i], hdr_color)
             hdr[i].width = WIDTHS[i]
@@ -340,9 +388,7 @@ def generate_word():
             new_status = get_new_status(status)
             palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
             row_hex    = palette["row"] if idx % 2 == 0 else palette["alt"]
-
-            # New Status için kendi satır rengi
-            ns_hex = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
+            ns_hex     = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
 
             row_cells = table.add_row().cells
             for i, key in enumerate(COL_KEYS):
@@ -356,7 +402,6 @@ def generate_word():
                 row_cells[i].text  = val
                 row_cells[i].width = WIDTHS[i]
 
-                # New Status sütununa kendi arka plan rengi
                 cell_hex = ns_hex if key == "new_status" else row_hex
                 add_shading(row_cells[i], cell_hex)
 
@@ -415,6 +460,8 @@ def generate_excel():
     wb = openpyxl.load_workbook(EXCEL_FILE) if excel_exists else openpyxl.Workbook()
     if not excel_exists and "Sheet" in wb.sheetnames:
         del wb["Sheet"]
+
+    # Onay önceden alındı: sheet varsa sil ve yeniden oluştur
     if PAGE_NAME in wb.sheetnames:
         del wb[PAGE_NAME]
     ws = wb.create_sheet(title=PAGE_NAME)
@@ -431,7 +478,6 @@ def generate_excel():
     for ci, col_name in enumerate(COLS, 1):
         c = ws.cell(row=2, column=ci, value=col_name)
         c.font      = HDR_FONT
-        # New Status header'ı farklı renk
         hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
         c.fill      = PatternFill("solid", fgColor=hdr_color)
         c.alignment = CENTER

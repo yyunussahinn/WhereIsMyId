@@ -7,6 +7,13 @@
 # ------------------------------------------------------------
 PLATFORM = "ios"
 
+BLACKLIST_IDS = [
+    "statusBarBackground",
+    "content",
+    "action_bar_root",
+    "navigationBarBackground"
+]
+
 # Çıktı formatı: "word"  |  "excel"  |  "word+excel"
 OUTPUT_FORMAT = "word+excel"
 
@@ -17,7 +24,7 @@ OUTPUT_FORMAT = "word+excel"
 #   "duplicate" → Aynı ID'yi paylaşan elementler
 #   "unique"    → Geçerli ve tekil ID'ye sahip elementler
 
-DOCUMENT_SECTIONS = ["missing", "undefined", "duplicate", "unique"]
+DOCUMENT_SECTIONS = ["unique", "undefined", "duplicate", "missing"]
 
 # Çıktı klasörü
 OUTPUT_DIR = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements"

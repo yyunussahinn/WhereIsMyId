@@ -50,14 +50,51 @@ for s in DOCUMENT_SECTIONS:
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-PAGE_NAME       = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
+# ========================
+# SAYFA ADI & ÜZERINE YAZMA ONAYI
+# ========================
+def ask_overwrite(label: str) -> bool:
+    """
+    Kullanıcıdan evet/hayır onayı alır.
+    evet / e / yes / y  → True
+    hayır / h / no / n  → False
+    Geçersiz giriş olursa tekrar sorar.
+    """
+    while True:
+        answer = input(f"   ⚠️  {label} zaten mevcut. Üzerine yazmak istiyor musunuz? [e/h]: ").strip().lower()
+        if answer in ("e", "evet", "y", "yes"):
+            return True
+        if answer in ("h", "hayır", "n", "no"):
+            return False
+        print("   Lütfen 'e' (evet) veya 'h' (hayır) girin.")
+
+PAGE_NAME = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
+
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_IOS.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_IOS.xlsx")
-SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots")
+SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_ios")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 
 PLATFORM = "ios"
+
+# ---------- Word dosyası kontrolü ----------
+if OUTPUT_FMT in ("word", "word+excel") and os.path.exists(WORD_FILE):
+    if not ask_overwrite(f"Word dosyası '{os.path.basename(WORD_FILE)}'"):
+        print("\n🚫 İşlem iptal edildi. Farklı bir sayfa adıyla tekrar çalıştırın.\n")
+        raise SystemExit(0)
+
+# ---------- Excel sheet kontrolü ----------
+if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
+    try:
+        _wb_check = openpyxl.load_workbook(EXCEL_FILE, read_only=True)
+        if PAGE_NAME in _wb_check.sheetnames:
+            if not ask_overwrite(f"Excel sheet '{PAGE_NAME}'"):
+                print("\n🚫 İşlem iptal edildi. Farklı bir sayfa adıyla tekrar çalıştırın.\n")
+                raise SystemExit(0)
+        _wb_check.close()
+    except Exception:
+        pass
 
 print(f"\n🔧 Platform     : iOS")
 print(f"📁 Çıktı formatı: {OUTPUT_FMT}")
@@ -141,10 +178,6 @@ def get_screen_size(driver):
     return size["width"], size["height"]
 
 def is_visible_or_scrollable(el, screen_w, screen_h):
-    """
-    Hamburger menü gibi ekran dışına kaymış (x >= screen_w) elementleri eler.
-    Scroll içinde kalan ama henüz görünmeyen inputları korur.
-    """
     try:
         rect = el.rect
         x = rect.get("x", 0)
@@ -153,9 +186,9 @@ def is_visible_or_scrollable(el, screen_w, screen_h):
         h = rect.get("height", 0)
         if w <= 0 or h <= 0:
             return False
-        if x >= screen_w:       # ekranın sağına taşmış (hamburger menü)
+        if x >= screen_w:
             return False
-        if x + w <= 0:          # ekranın soluna taşmış
+        if x + w <= 0:
             return False
         return True
     except Exception:
@@ -316,10 +349,10 @@ def generate_word():
     COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
     WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3), Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
 
-    word_exists = os.path.exists(WORD_FILE)
-    doc = Document(WORD_FILE) if word_exists else Document()
-    if word_exists:
-        doc.add_page_break()
+    # Onay önceden alındı: dosya varsa sil, sıfırdan oluştur
+    if os.path.exists(WORD_FILE):
+        os.remove(WORD_FILE)
+    doc = Document()
 
     title = doc.add_heading(f"Accessibility ID Report — {PAGE_NAME}", level=1)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -422,6 +455,8 @@ def generate_excel():
     wb = openpyxl.load_workbook(EXCEL_FILE) if excel_exists else openpyxl.Workbook()
     if not excel_exists and "Sheet" in wb.sheetnames:
         del wb["Sheet"]
+
+    # Onay önceden alındı: sheet varsa sil ve yeniden oluştur
     if PAGE_NAME in wb.sheetnames:
         del wb[PAGE_NAME]
     ws = wb.create_sheet(title=PAGE_NAME)
