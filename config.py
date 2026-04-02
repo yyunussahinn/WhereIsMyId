@@ -5,7 +5,7 @@
 # ------------------------------------------------------------
 # PLATFORM SEÇİMİ:  "ios"  veya  "android"
 # ------------------------------------------------------------
-PLATFORM = "android"
+PLATFORM = "ios"
 
 BLACKLIST_IDS = [
     "statusBarBackground",
@@ -24,7 +24,7 @@ OUTPUT_FORMAT = "word+excel"
 #   "duplicate" → Aynı ID'yi paylaşan elementler
 #   "unique"    → Geçerli ve tekil ID'ye sahip elementler
 
-DOCUMENT_SECTIONS = ["missing", "undefined", "duplicate", "unique"]
+DOCUMENT_SECTIONS = ["unique", "undefined", "duplicate", "missing"]
 
 # Çıktı klasörü
 OUTPUT_DIR = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements"
