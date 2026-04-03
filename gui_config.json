@@ -1,7 +1,7 @@
 {
-  "platform": "ios",
-  "output_format": "word+excel",
-  "output_dir": "/Users/yunus.sahin/Desktop/elemet reporter app çıktı",
+  "platform": "android",
+  "output_format": "excel",
+  "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/Hitit Otomasyon Belgeler/KZR Elements Report",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
     "unique",
@@ -10,6 +10,11 @@
     "missing"
   ],
   "blacklist_ids": [
+    "text-input-flat-label-inactive",
+    "text-input-underline",
+    "right-icon-adornment-container",
+    "right-icon-adornment",
+    "text-input-flat",
     "statusBarBackground",
     "content",
     "action_bar_root",
@@ -28,22 +33,22 @@
       "platform_version": "18.6",
       "bundle_id": "test.kz.flyarystan",
       "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
-    },
-    "test": {
-      "device_name": "iPhone 16",
-      "platform_version": "18.6",
-      "bundle_id": "test.kz.flyarystan",
-      "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
     }
   },
-  "active_ios_profile": "KZR IOS",
+  "active_ios_profile": "PIA iOS",
   "android_profiles": {
     "PIA Android": {
       "device_name": "ce04171418dee0010c",
       "platform_version": "9",
       "app_package": "test.com.piac.thepiaapp.android",
       "app_activity": "com.piamobile.MainActivity"
+    },
+    "KZR Android": {
+      "device_name": "ce04171418dee0010c",
+      "platform_version": "9",
+      "app_package": "test.kz.flyarystan",
+      "app_activity": "kz.flyarystan.MainActivity"
     }
   },
-  "active_android_profile": "PIA Android"
+  "active_android_profile": "KZR Android"
 }
