@@ -26,7 +26,7 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # ── Palet ────────────────────────────────────────────────────────────────────
-ACCENT        = "#F5C842"
+ACCENT        = "#000000"
 ACCENT_DK     = "#D4A820"
 ACCENT_IOS    = "#185FA5"
 ACCENT_IOS_DK = "#0C447C"
@@ -181,10 +181,10 @@ class LE(ctk.CTkFrame):
 
 class Badge(ctk.CTkLabel):
     _S = {
-        "idle":    ("#8C7D6A", "○  HAZIR"),
-        "running": ("#D4A820", "◉  ÇALIŞIYOR"),
-        "ok":      ("#2D6A2D", "✓  TAMAMLANDI"),
-        "error":   ("#A32020", "✗  HATA"),
+        "idle":    (ACCENT_DK, "○  HAZIR"),
+        "running": (ACCENT_DK, "◉  ÇALIŞIYOR"),
+        "ok":      ("green", "✓  TAMAMLANDI"),
+        "error":   ("red", "✗  HATA"),
     }
     def __init__(self, parent, **kw):
         super().__init__(parent, font=FB, corner_radius=8, padx=12, pady=4, **kw)
@@ -405,16 +405,16 @@ class App(ctk.CTk):
         self._mk_body()
 
     def _mk_header(self):
-        hdr = ctk.CTkFrame(self, fg_color="#2C2416", corner_radius=0, height=54)
+        hdr = ctk.CTkFrame(self, fg_color="white", corner_radius=0, height=54)
         hdr.pack(fill="x", side="top")
         hdr.pack_propagate(False)
         ctk.CTkLabel(hdr, text="WHERE IS MY ID",
-                     font=FT, text_color="#F5C842").pack(side="left", padx=20)
+                     font=FT, text_color="black").pack(side="left", padx=20)
         ctk.CTkLabel(hdr, text="mobile accessibility reporter",
-                     font=FS, text_color="#C8A870").pack(side="left", padx=4)
+                     font=FS, text_color="black").pack(side="left", padx=4)
         self.badge = Badge(hdr)
         self.badge.pack(side="right", padx=20)
-        ctk.CTkLabel(hdr, text="v4.0", font=FB, text_color=T_MUT).pack(side="right", padx=4)
+        ctk.CTkLabel(hdr, text="v4.0", font=FB, text_color="black").pack(side="right", padx=4)
 
     def _mk_footer(self):
         foot = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=0, height=66)
@@ -456,7 +456,7 @@ class App(ctk.CTk):
             sb, textvariable=self.v_summary_xl,
             placeholder_text="dosya secin...",
             fg_color="#EDE8DF", border_color="#D8D0C0",
-            text_color="#2C2416", font=FS, width=220, corner_radius=6)
+            text_color="#1a8242", font=FS, width=220, corner_radius=6)
         self.xl_entry.pack(side="left", pady=8)
         ctk.CTkButton(sb, text="📂", width=30, height=28,
                       fg_color="#EDE8DF", hover_color="#D8D0C0",
@@ -575,14 +575,14 @@ class App(ctk.CTk):
         p.rowconfigure(1, weight=1)
         p.rowconfigure(2, weight=0)
         p.columnconfigure(0, weight=1)
-        hdr = ctk.CTkFrame(p, fg_color="#2C2416", corner_radius=0, height=36)
+        hdr = ctk.CTkFrame(p, fg_color="white", corner_radius=0, height=36)
         hdr.grid(row=0, column=0, sticky="ew")
         hdr.grid_propagate(False)
         ctk.CTkLabel(hdr, text="KONSOL CIKTISI",
-                     font=FB, text_color="#F5C842").pack(side="left", padx=14)
+                     font=FB, text_color="green").pack(side="left", padx=14)
         ctk.CTkButton(hdr, text="Temizle", font=FS, width=70, height=24,
-                      fg_color="#443824", hover_color="#5A4A30",
-                      text_color="#C8A870", corner_radius=6,
+                      fg_color="#7B1515", hover_color="#7B1515",
+                      text_color="white", corner_radius=6,
                       command=self._clear_log).pack(side="right", padx=10, pady=5)
         self.log_box = ctk.CTkTextbox(
             p, fg_color="#FAFAF7", text_color=T_PRI,
@@ -653,7 +653,7 @@ class App(ctk.CTk):
             self.bl_hdr.pack_forget()
             self.bl_frame.pack_forget()
         else:
-            self.btn_and.configure(fg_color=ACCENT,    text_color=BG_MAIN,
+            self.btn_and.configure(fg_color=ACCENT_DK,    text_color=BG_MAIN,
                                    hover_color=ACCENT_DK)
             self.btn_ios.configure(fg_color=BG_INPUT,  text_color=T_MUT,
                                    hover_color="#E8E0D0")
@@ -748,7 +748,7 @@ class App(ctk.CTk):
             self.btn_summary.configure(state="disabled")
             self.badge.set("running")
         else:
-            self.btn_run.configure(state="normal", fg_color="#2C2416", text_color="#FFFFFF")
+            self.btn_run.configure(state="normal", fg_color="#1a8242", text_color="#FFFFFF")
             self.btn_stop.configure(state="disabled")
             self.btn_summary.configure(state="normal")
 

@@ -1,12 +1,9 @@
 {
-  "platform": "ios",
+  "platform": "android",
   "output_format": "word+excel",
   "output_dir": "/Users/yunus.sahin/Desktop/test app",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
-    "unique",
-    "undefined",
-    "duplicate",
     "missing"
   ],
   "blacklist_ids": [
@@ -37,7 +34,13 @@
       "platform_version": "9",
       "app_package": "test.com.piac.thepiaapp.android",
       "app_activity": "com.piamobile.MainActivity"
+    },
+    "KZR Android": {
+      "device_name": "ce04171418dee0010c",
+      "platform_version": "9",
+      "app_package": "test.kz.flyarystan",
+      "app_activity": "kz.flyarystan.MainActivity"
     }
   },
-  "active_android_profile": "PIA Android"
+  "active_android_profile": "KZR Android"
 }
