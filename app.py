@@ -26,20 +26,20 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # ── Palet ────────────────────────────────────────────────────────────────────
-ACCENT        = "#E8A838"
-ACCENT_DK     = "#C08020"
-ACCENT_IOS    = "#4A9ECC"
-ACCENT_IOS_DK = "#2E7DAA"
-BG_MAIN       = "#111318"
-BG_PANEL      = "#1A1D24"
-BG_CARD       = "#20242E"
-BG_INPUT      = "#252933"
-T_PRI         = "#F0EDE6"
-T_MUT         = "#7A8090"
-C_OK          = "#6FCF8A"
-C_ERR         = "#F07070"
-C_WRN         = "#E8C04A"
-C_INF         = "#70B8F0"
+ACCENT        = "#F5C842"
+ACCENT_DK     = "#D4A820"
+ACCENT_IOS    = "#185FA5"
+ACCENT_IOS_DK = "#0C447C"
+BG_MAIN       = "#F5F0E8"
+BG_PANEL      = "#FFFFFF"
+BG_CARD       = "#F5F0E8"
+BG_INPUT      = "#EDE8DF"
+T_PRI         = "#2C2416"
+T_MUT         = "#8C7D6A"
+C_OK          = "#2D6A2D"
+C_ERR         = "#A32020"
+C_WRN         = "#8C6A10"
+C_INF         = "#185FA5"
 
 # ── Fontlar ──────────────────────────────────────────────────────────────────
 FT  = ("Courier New", 18, "bold")
@@ -155,7 +155,7 @@ class LE(ctk.CTkFrame):
         ctk.CTkLabel(self, text=label, font=FS, text_color=T_MUT,
                      width=155, anchor="w").pack(side="left")
         ctk.CTkEntry(self, textvariable=var, placeholder_text=ph,
-                     fg_color=BG_INPUT, border_color="#3A3F50",
+                     fg_color=BG_INPUT, border_color="#D8D0C0",
                      text_color=T_PRI, font=FS, corner_radius=6
                      ).pack(side="left", fill="x", expand=True, padx=(4, 0))
         if browse_dir:
@@ -181,10 +181,10 @@ class LE(ctk.CTkFrame):
 
 class Badge(ctk.CTkLabel):
     _S = {
-        "idle":    ("#3A3F50", "○  HAZIR"),
-        "running": (ACCENT,    "◉  ÇALIŞIYOR"),
-        "ok":      ("#2D6A4F", "✓  TAMAMLANDI"),
-        "error":   ("#7B2D2D", "✗  HATA"),
+        "idle":    ("#8C7D6A", "○  HAZIR"),
+        "running": ("#D4A820", "◉  ÇALIŞIYOR"),
+        "ok":      ("#2D6A2D", "✓  TAMAMLANDI"),
+        "error":   ("#A32020", "✗  HATA"),
     }
     def __init__(self, parent, **kw):
         super().__init__(parent, font=FB, corner_radius=8, padx=12, pady=4, **kw)
@@ -192,7 +192,7 @@ class Badge(ctk.CTkLabel):
 
     def set(self, s):
         col, txt = self._S.get(s, self._S["idle"])
-        self.configure(fg_color=col, text=txt, text_color=T_PRI)
+        self.configure(fg_color=col, text=txt, text_color="#FFFFFF")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -227,7 +227,7 @@ class ProfilePanel(ctk.CTkFrame):
         col = ACCENT_IOS if self.platform == "ios" else ACCENT
 
         # Profil satırı
-        row = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=8)
+        row = ctk.CTkFrame(self, fg_color="#EDE8DF", corner_radius=8)
         row.pack(fill="x", padx=14, pady=(0, 4))
         ctk.CTkLabel(row, text="Profil:", font=FS,
                      text_color=T_MUT, width=50, anchor="w").pack(side="left", padx=(10,0), pady=8)
@@ -236,12 +236,12 @@ class ProfilePanel(ctk.CTkFrame):
             fg_color=BG_INPUT, button_color=BG_CARD,
             button_hover_color=BG_PANEL, text_color=T_PRI,
             font=FS, dropdown_fg_color=BG_CARD,
-            corner_radius=6, command=self._select, width=150)
+            corner_radius=6, command=self._select, width=200)
         self.dd.pack(side="left", padx=(4, 8), pady=8)
         for txt, tc, cb in [("💾", col, self._save),
                              ("＋",   C_OK,  self._new),
                              ("✕",     C_ERR, self._delete)]:
-            ctk.CTkButton(row, text=txt, width=50, height=26,
+            ctk.CTkButton(row, text=txt, width=40, height=26,
                           fg_color=BG_INPUT, hover_color=BG_PANEL,
                           text_color=tc, font=FS, corner_radius=6,
                           command=cb).pack(side="left", padx=(0, 4), pady=8)
@@ -364,7 +364,7 @@ class App(ctk.CTk):
         self.title("Where is My Id")
         self.geometry("1160x840")
         self.minsize(980, 680)
-        self.configure(fg_color=BG_MAIN)
+        self.configure(fg_color="#F5F0E8")
 
         self._mk_vars()
         self._mk_ui()
@@ -405,70 +405,69 @@ class App(ctk.CTk):
         self._mk_body()
 
     def _mk_header(self):
-        hdr = ctk.CTkFrame(self, fg_color=BG_PANEL, corner_radius=0, height=54)
+        hdr = ctk.CTkFrame(self, fg_color="#2C2416", corner_radius=0, height=54)
         hdr.pack(fill="x", side="top")
         hdr.pack_propagate(False)
         ctk.CTkLabel(hdr, text="WHERE IS MY ID",
-                     font=FT, text_color=ACCENT).pack(side="left", padx=20)
+                     font=FT, text_color="#F5C842").pack(side="left", padx=20)
         ctk.CTkLabel(hdr, text="mobile accessibility reporter",
-                     font=FS, text_color=T_MUT).pack(side="left", padx=4)
+                     font=FS, text_color="#C8A870").pack(side="left", padx=4)
         self.badge = Badge(hdr)
         self.badge.pack(side="right", padx=20)
         ctk.CTkLabel(hdr, text="v4.0", font=FB, text_color=T_MUT).pack(side="right", padx=4)
 
     def _mk_footer(self):
-        foot = ctk.CTkFrame(self, fg_color=BG_PANEL, corner_radius=0, height=66)
+        foot = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=0, height=66)
         foot.pack(fill="x", side="bottom")
         foot.pack_propagate(False)
 
-        # Sol: aktif profil etiketi
-        self.lbl_prof = ctk.CTkLabel(foot, text="", font=FS, text_color=T_MUT)
-        self.lbl_prof.pack(side="left", padx=16)
+        # Sol: aktif profil etiketi + CALISTIR / DURDUR
+        lf = ctk.CTkFrame(foot, fg_color="transparent")
+        lf.pack(side="left", padx=(12, 0), pady=10)
 
-        # Sağ: tüm kontroller
-        rf = ctk.CTkFrame(foot, fg_color="transparent")
-        rf.pack(side="right", padx=12, pady=10)
+        self.lbl_prof = ctk.CTkLabel(lf, text="", font=FS, text_color=T_MUT)
+        self.lbl_prof.pack(side="left", padx=(4, 12))
 
-        # ── Build Summary kutusu
-        sb = ctk.CTkFrame(rf, fg_color=BG_CARD, corner_radius=8,
-                          border_width=1, border_color="#3A3F50")
-        sb.pack(side="left", padx=(0, 14))
-        ctk.CTkLabel(sb, text="Excel:", font=FS,
-                     text_color=T_MUT).pack(side="left", padx=(10, 4), pady=8)
-        self.xl_entry = ctk.CTkEntry(
-            sb, textvariable=self.v_summary_xl,
-            placeholder_text="dosya seçin…",
-            fg_color=BG_INPUT, border_color="#3A3F50",
-            text_color=T_PRI, font=FS, width=220, corner_radius=6)
-        self.xl_entry.pack(side="left", pady=8)
-        ctk.CTkButton(sb, text="📂", width=30, height=28,
-                      fg_color=BG_INPUT, hover_color=BG_CARD,
-                      font=FS, corner_radius=6,
-                      command=self._pick_excel).pack(side="left", padx=(4, 4), pady=8)
-        self.btn_summary = ctk.CTkButton(
-            sb, text="📊  Merge Sheets", font=FL, height=36, width=155,
-            fg_color="#2D4A6A", hover_color="#1E3550",
-            text_color=T_PRI, corner_radius=6,
-            command=self._run_summary)
-        self.btn_summary.pack(side="left", padx=(0, 8), pady=8)
-
-        # Calistir / Durdur
-        rb = ctk.CTkFrame(rf, fg_color="transparent")
-        rb.pack(side="left")
         self.btn_run = ctk.CTkButton(
-            rb, text="▶  CALISTIR", font=FL, height=44, width=150,
-            fg_color=ACCENT, hover_color=ACCENT_DK,
-            text_color=BG_MAIN, corner_radius=8,
+            lf, text="▶  CALISTIR", font=FL, height=44, width=150,
+            fg_color="#1a8242",hover_color="#1a8242",
+            text_color="#FFFFFF", corner_radius=8,
             command=self._run_checker)
         self.btn_run.pack(side="left", padx=(0, 6))
 
         self.btn_stop = ctk.CTkButton(
-            rb, text="■  DURDUR", font=FL, height=44, width=120,
-            fg_color="#7B2D2D", hover_color="#5A2020",
-            text_color=T_PRI, corner_radius=8,
+            lf, text="■  DURDUR", font=FL, height=44, width=120,
+            fg_color="#7B1515", hover_color="#7B1515",
+            text_color="#FFFFFF", corner_radius=8,
             command=self._stop_proc)
         self.btn_stop.pack(side="left")
         self.btn_stop.configure(state="disabled")
+
+        # Sağ: Excel seç + Build Summary
+        rf = ctk.CTkFrame(foot, fg_color="transparent")
+        rf.pack(side="right", padx=12, pady=10)
+
+        sb = ctk.CTkFrame(rf, fg_color="#F5F0E8", corner_radius=8,
+                          border_width=1, border_color="#D8D0C0")
+        sb.pack(side="right")
+        ctk.CTkLabel(sb, text="Excel:", font=FS,
+                     text_color="#8C7D6A").pack(side="left", padx=(10, 4), pady=8)
+        self.xl_entry = ctk.CTkEntry(
+            sb, textvariable=self.v_summary_xl,
+            placeholder_text="dosya secin...",
+            fg_color="#EDE8DF", border_color="#D8D0C0",
+            text_color="#2C2416", font=FS, width=220, corner_radius=6)
+        self.xl_entry.pack(side="left", pady=8)
+        ctk.CTkButton(sb, text="📂", width=30, height=28,
+                      fg_color="#EDE8DF", hover_color="#D8D0C0",
+                      font=FS, corner_radius=6,
+                      command=self._pick_excel).pack(side="left", padx=(4, 4), pady=8)
+        self.btn_summary = ctk.CTkButton(
+            sb, text="📊  Merge Sheets", font=FL, height=36, width=155,
+            fg_color="#1a8242", hover_color="#1a8242",
+            text_color="#FFFFFF", corner_radius=6,
+            command=self._run_summary)
+        self.btn_summary.pack(side="left", padx=(0, 8), pady=8)
 
     def _mk_body(self):
         body = ctk.CTkFrame(self, fg_color="transparent")
@@ -477,13 +476,13 @@ class App(ctk.CTk):
         body.columnconfigure(1, weight=1)
         body.rowconfigure(0, weight=1)
 
-        left = ctk.CTkScrollableFrame(body, width=430, fg_color=BG_PANEL,
+        left = ctk.CTkScrollableFrame(body, width=430, fg_color="#FFFFFF",
                                        corner_radius=10,
-                                       scrollbar_button_color=BG_CARD)
+                                       scrollbar_button_color="#D8D0C0")
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         self._mk_config(left)
 
-        right = ctk.CTkFrame(body, fg_color=BG_PANEL, corner_radius=10)
+        right = ctk.CTkFrame(body, fg_color="#F5F0E8", corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew")
         self._mk_log(right)
 
@@ -493,7 +492,7 @@ class App(ctk.CTk):
 
         # Platform toggle
         SecHdr(p, "PLATFORM").pack(fill="x", **pad)
-        pf = ctk.CTkFrame(p, fg_color=BG_CARD, corner_radius=8)
+        pf = ctk.CTkFrame(p, fg_color="#EDE8DF", corner_radius=8)
         pf.pack(fill="x", padx=14, pady=(0, 8))
         self.btn_ios = ctk.CTkButton(
             pf, text="🍎  iOS", font=FL, height=38, corner_radius=7,
@@ -502,7 +501,7 @@ class App(ctk.CTk):
         self.btn_ios.pack(side="left", expand=True, fill="x", padx=(6, 3), pady=6)
         self.btn_and = ctk.CTkButton(
             pf, text="🤖  Android", font=FL, height=38, corner_radius=7,
-            fg_color=BG_INPUT, hover_color="#2E3340", text_color=T_MUT,
+            fg_color=BG_INPUT, hover_color="#E8E0D0", text_color=T_MUT,
             command=lambda: self._toggle_platform("android"))
         self.btn_and.pack(side="left", expand=True, fill="x", padx=(3, 6), pady=6)
 
@@ -526,7 +525,7 @@ class App(ctk.CTk):
 
         # Rapor bölümleri
         SecHdr(p, "RAPOR BOLUMLERI").pack(fill="x", **pad)
-        sf = ctk.CTkFrame(p, fg_color=BG_CARD, corner_radius=8)
+        sf = ctk.CTkFrame(p, fg_color="#EDE8DF", corner_radius=8)
         sf.pack(fill="x", padx=14, pady=(0, 8))
         for lbl, var, col in [
             ("Unique ID",    self.v_sec_unique,    C_OK),
@@ -535,8 +534,8 @@ class App(ctk.CTk):
             ("Missing ID",   self.v_sec_missing,   C_ERR),
         ]:
             ctk.CTkCheckBox(sf, text=lbl, variable=var, font=FS,
-                            text_color=col, fg_color=ACCENT, hover_color=ACCENT_DK,
-                            checkmark_color=BG_MAIN, border_color="#3A3F50"
+                            text_color=T_PRI, fg_color="white", hover_color="white",
+                            checkmark_color="#1a8242", border_color="#B0A898"
                             ).pack(anchor="w", padx=12, pady=4)
 
         # iOS profil paneli
@@ -567,7 +566,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(self.bl_frame, text="Virgülle ayir:",
                      font=FS, text_color=T_MUT).pack(anchor="w")
         ctk.CTkEntry(self.bl_frame, textvariable=self.v_blacklist,
-                     fg_color=BG_INPUT, border_color="#3A3F50",
+                     fg_color=BG_INPUT, border_color="#D8D0C0",
                      text_color=T_PRI, font=FS, corner_radius=6
                      ).pack(fill="x", pady=(2, 0))
 
@@ -576,19 +575,19 @@ class App(ctk.CTk):
         p.rowconfigure(1, weight=1)
         p.rowconfigure(2, weight=0)
         p.columnconfigure(0, weight=1)
-        hdr = ctk.CTkFrame(p, fg_color=BG_CARD, corner_radius=0, height=36)
+        hdr = ctk.CTkFrame(p, fg_color="#2C2416", corner_radius=0, height=36)
         hdr.grid(row=0, column=0, sticky="ew")
         hdr.grid_propagate(False)
         ctk.CTkLabel(hdr, text="KONSOL CIKTISI",
-                     font=FB, text_color=ACCENT).pack(side="left", padx=14)
+                     font=FB, text_color="#F5C842").pack(side="left", padx=14)
         ctk.CTkButton(hdr, text="Temizle", font=FS, width=70, height=24,
-                      fg_color=BG_INPUT, hover_color=BG_PANEL,
-                      text_color=T_MUT, corner_radius=6,
+                      fg_color="#443824", hover_color="#5A4A30",
+                      text_color="#C8A870", corner_radius=6,
                       command=self._clear_log).pack(side="right", padx=10, pady=5)
         self.log_box = ctk.CTkTextbox(
-            p, fg_color=BG_MAIN, text_color=T_PRI,
+            p, fg_color="#FAFAF7", text_color=T_PRI,
             font=FLG, corner_radius=0, wrap="word",
-            scrollbar_button_color=BG_CARD)
+            scrollbar_button_color="#D8D0C0")
         self.log_box.grid(row=1, column=0, sticky="nsew")
         for tag, col in [("ok", C_OK), ("err", C_ERR),
                           ("warn", C_WRN), ("info", C_INF), ("dim", T_MUT)]:
@@ -602,39 +601,39 @@ class App(ctk.CTk):
         p.rowconfigure(2, weight=0)
 
         ctk.CTkLabel(self.page_input_frame, text="Sayfa adi:",
-                     font=FL, text_color=ACCENT).pack(side="left", padx=(14,6), pady=10)
+                     font=FL, text_color="black").pack(side="left", padx=(14,6), pady=10)
         self.v_page = tk.StringVar()
         pe = ctk.CTkEntry(self.page_input_frame, textvariable=self.v_page,
                           placeholder_text="login, book_flight",
-                          fg_color=BG_INPUT, border_color=ACCENT,
+                          fg_color=BG_INPUT, border_color="green",
                           text_color=T_PRI, font=FL, width=200, corner_radius=6)
         pe.pack(side="left", pady=10)
         pe.bind("<Return>", lambda e: self._submit_page())
         ctk.CTkButton(self.page_input_frame, text="Gonder",
                       font=FL, height=32, width=90,
-                      fg_color=ACCENT, hover_color=ACCENT_DK,
+                      fg_color="green", hover_color="green",
                       text_color=BG_MAIN, corner_radius=6,
                       command=self._submit_page).pack(side="left", padx=10, pady=10)
 
         # Uzerine yazma onay frame (runtime gosterilir)
-        self.ow_frame = ctk.CTkFrame(p, fg_color="#2A1A1A", corner_radius=0, height=50)
+        self.ow_frame = ctk.CTkFrame(p, fg_color="#FEF6E4", corner_radius=0, height=50)
         self.ow_frame.grid(row=3, column=0, sticky="ew")
         self.ow_frame.grid_propagate(False)
         self.ow_frame.grid_remove()
         p.rowconfigure(3, weight=0)
         self.ow_label = ctk.CTkLabel(self.ow_frame, text="",
-                                      font=FL, text_color=C_WRN)
+                                      font=FL, text_color="#8C6A10")
         self.ow_label.pack(side="left", padx=(14, 12), pady=10)
         ctk.CTkButton(self.ow_frame, text="✓  Evet (Uzerine Yaz)",
                       font=FL, height=32, width=190,
-                      fg_color="#2D6A4F", hover_color="#1E4F3A",
-                      text_color=T_PRI, corner_radius=6,
+                      fg_color="#2D6A2D", hover_color="#2D6A2D",
+                      text_color="white", corner_radius=6,
                       command=lambda: self._submit_overwrite(True)
                       ).pack(side="left", pady=10)
         ctk.CTkButton(self.ow_frame, text="✗  Hayir (Iptal)",
                       font=FL, height=32, width=150,
-                      fg_color="#7B2D2D", hover_color="#5A2020",
-                      text_color=T_PRI, corner_radius=6,
+                      fg_color="#A32020", hover_color="#A32020",
+                      text_color="white", corner_radius=6,
                       command=lambda: self._submit_overwrite(False)
                       ).pack(side="left", padx=(8, 0), pady=10)
 
@@ -645,7 +644,7 @@ class App(ctk.CTk):
             self.btn_ios.configure(fg_color=ACCENT_IOS, text_color=BG_MAIN,
                                    hover_color=ACCENT_IOS_DK)
             self.btn_and.configure(fg_color=BG_INPUT,   text_color=T_MUT,
-                                   hover_color="#2E3340")
+                                   hover_color="#E8E0D0")
             if not init:
                 self.ios_hdr.pack(fill="x", padx=14, pady=3)
                 self.ios_panel.pack(fill="x", pady=(0, 6))
@@ -657,7 +656,7 @@ class App(ctk.CTk):
             self.btn_and.configure(fg_color=ACCENT,    text_color=BG_MAIN,
                                    hover_color=ACCENT_DK)
             self.btn_ios.configure(fg_color=BG_INPUT,  text_color=T_MUT,
-                                   hover_color="#2E3340")
+                                   hover_color="#E8E0D0")
             self.ios_hdr.pack_forget()
             self.ios_panel.pack_forget()
             if not init:
@@ -744,12 +743,12 @@ class App(ctk.CTk):
 
     def _set_busy(self, busy):
         if busy:
-            self.btn_run.configure(state="disabled", fg_color=BG_CARD, text_color=T_MUT)
+            self.btn_run.configure(state="disabled", fg_color="#D8D0C0", text_color="#8C7D6A")
             self.btn_stop.configure(state="normal")
             self.btn_summary.configure(state="disabled")
             self.badge.set("running")
         else:
-            self.btn_run.configure(state="normal", fg_color=ACCENT, text_color=BG_MAIN)
+            self.btn_run.configure(state="normal", fg_color="#2C2416", text_color="#FFFFFF")
             self.btn_stop.configure(state="disabled")
             self.btn_summary.configure(state="normal")
 

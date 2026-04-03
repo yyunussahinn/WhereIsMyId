@@ -1,7 +1,7 @@
 {
   "platform": "ios",
   "output_format": "word+excel",
-  "output_dir": "/Users/yunus.sahin/Desktop/elemet reporter app çıktı",
+  "output_dir": "/Users/yunus.sahin/Desktop/test app",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
     "unique",
@@ -28,15 +28,9 @@
       "platform_version": "18.6",
       "bundle_id": "test.kz.flyarystan",
       "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
-    },
-    "test": {
-      "device_name": "iPhone 16",
-      "platform_version": "18.6",
-      "bundle_id": "test.kz.flyarystan",
-      "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
     }
   },
-  "active_ios_profile": "KZR IOS",
+  "active_ios_profile": "PIA iOS",
   "android_profiles": {
     "PIA Android": {
       "device_name": "ce04171418dee0010c",
