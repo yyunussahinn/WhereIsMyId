@@ -1,4 +1,5 @@
 import time
+import sys  # GUI flush için eklendi
 import os
 from datetime import datetime
 from collections import Counter
@@ -61,6 +62,7 @@ def ask_overwrite(label: str) -> bool:
     Geçersiz giriş olursa tekrar sorar.
     """
     while True:
+        sys.stdout.flush()  # GUI subprocess flush
         answer = input(f"   ⚠️  {label} zaten mevcut. Üzerine yazmak istiyor musunuz? [e/h]: ").strip().lower()
         if answer in ("e", "evet", "y", "yes"):
             return True
@@ -68,6 +70,7 @@ def ask_overwrite(label: str) -> bool:
             return False
         print("   Lütfen 'e' (evet) veya 'h' (hayır) girin.")
 
+sys.stdout.flush()  # GUI subprocess flush
 PAGE_NAME = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
 
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_IOS.docx")
@@ -104,6 +107,7 @@ print(f"📄 Sayfa adı    : {PAGE_NAME}\n")
 # APPIUM OPTIONS
 # ========================
 from appium.options.ios import XCUITestOptions
+
 
 ios     = cfg.IOS
 options = XCUITestOptions()

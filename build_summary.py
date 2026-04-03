@@ -22,6 +22,13 @@ from openpyxl.utils import get_column_letter
 
 # ── Dosyanın olduğu konum ──────────────────────────────────────────────────
 EXCEL_FILE = "/Users/yunus.sahin/PycharmProjects/PythonProject/PIA_Elements/Revize_Elements_Report_Android.xlsx"
+# GUI env-var override (Where is My Id)
+import os as _os
+_gui_xl = _os.environ.get("WIMID_EXCEL_FILE", "")
+if _gui_xl:
+    EXCEL_FILE = _gui_xl
+
+
 
 SKIP_SHEETS    = {"Data", "Summary", "Task"}
 DATA_START_ROW = 3

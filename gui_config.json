@@ -1,0 +1,49 @@
+{
+  "platform": "ios",
+  "output_format": "word+excel",
+  "output_dir": "/Users/yunus.sahin/Desktop/elemet reporter app çıktı",
+  "appium_server": "http://127.0.0.1:4723",
+  "document_sections": [
+    "unique",
+    "undefined",
+    "duplicate",
+    "missing"
+  ],
+  "blacklist_ids": [
+    "statusBarBackground",
+    "content",
+    "action_bar_root",
+    "navigationBarBackground",
+    "exo_content_frame"
+  ],
+  "ios_profiles": {
+    "PIA iOS": {
+      "device_name": "iPhone 16",
+      "platform_version": "18.6",
+      "bundle_id": "test.com.hitit.pia",
+      "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
+    },
+    "KZR IOS": {
+      "device_name": "iPhone 16",
+      "platform_version": "18.6",
+      "bundle_id": "test.kz.flyarystan",
+      "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
+    },
+    "test": {
+      "device_name": "iPhone 16",
+      "platform_version": "18.6",
+      "bundle_id": "test.kz.flyarystan",
+      "udid": "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9"
+    }
+  },
+  "active_ios_profile": "KZR IOS",
+  "android_profiles": {
+    "PIA Android": {
+      "device_name": "ce04171418dee0010c",
+      "platform_version": "9",
+      "app_package": "test.com.piac.thepiaapp.android",
+      "app_activity": "com.piamobile.MainActivity"
+    }
+  },
+  "active_android_profile": "PIA Android"
+}

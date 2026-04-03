@@ -1,0 +1,4 @@
+([('PIA Elements Reporter',
+   '/Users/yunus.sahin/PycharmProjects/PythonProject/dist/PIA Elements '
+   'Reporter',
+   'EXECUTABLE')],)
