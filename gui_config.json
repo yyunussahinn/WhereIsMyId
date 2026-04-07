@@ -1,6 +1,6 @@
 {
-  "platform": "android",
-  "output_format": "excel",
+  "platform": "ios",
+  "output_format": "word+excel",
   "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/Hitit Otomasyon Belgeler/KZR Elements Report",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
@@ -50,5 +50,5 @@
       "app_activity": "kz.flyarystan.MainActivity"
     }
   },
-  "active_android_profile": "KZR Android"
+  "active_android_profile": "PIA Android"
 }
