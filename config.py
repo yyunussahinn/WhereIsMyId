@@ -1,4 +1,4 @@
-# WHERE IS MY ID — config.py  (03.04.2026 15:42)
+# WHERE IS MY ID — config.py  (07.04.2026 12:27)
 PLATFORM = "android"
 BLACKLIST_IDS = ["text-input-flat-label-inactive", "text-input-underline", "right-icon-adornment-container", "right-icon-adornment", "text-input-flat", "statusBarBackground", "content", "action_bar_root", "navigationBarBackground", "exo_content_frame"]
 OUTPUT_FORMAT = "word+excel"
