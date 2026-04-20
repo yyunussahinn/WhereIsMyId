@@ -1,7 +1,7 @@
 {
-  "platform": "ios",
+  "platform": "android",
   "output_format": "word+excel",
-  "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/Hitit Otomasyon Belgeler/KZR Elements Report",
+  "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/whereismyid_reports",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
     "unique",
