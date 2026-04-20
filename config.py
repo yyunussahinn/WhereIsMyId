@@ -1,15 +1,15 @@
-# WHERE IS MY ID — config.py  (20.04.2026 11:51)
-PLATFORM = "ios"
+# WHERE IS MY ID — config.py  (20.04.2026 16:10)
+PLATFORM = "android"
 BLACKLIST_IDS = ["text-input-flat-label-inactive", "text-input-underline", "right-icon-adornment-container", "right-icon-adornment", "text-input-flat", "statusBarBackground", "content", "action_bar_root", "navigationBarBackground", "exo_content_frame"]
 OUTPUT_FORMAT = "word+excel"
 DOCUMENT_SECTIONS = ["unique", "undefined", "duplicate", "missing"]
 OUTPUT_DIR = "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/whereismyid_reports"
 APPIUM_SERVER = "http://127.0.0.1:4723"
-IOS = {
-    "device_name":      "iPhone 16",
-    "platform_version": "18.6",
-    "bundle_id":        "test.com.hitit.pia",
-    "udid":             "AD21A917-5271-4DF1-8C5D-E64A0DE8EAD9",
+ANDROID = {
+    "device_name":      "ce04171418dee0010c",
+    "platform_version": "9",
+    "app_package":      "test.com.piac.thepiaapp.android",
+    "app_activity":     "com.piamobile.MainActivity",
     "no_reset":         True,
 }
-ANDROID = {}
+IOS = {}
