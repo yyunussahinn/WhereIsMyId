@@ -56,14 +56,8 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # SAYFA ADI & ÜZERINE YAZMA ONAYI
 # ========================
 def ask_overwrite(label: str) -> bool:
-    """
-    Kullanıcıdan evet/hayır onayı alır.
-    evet / e / yes / y  → True
-    hayır / h / no / n  → False
-    Geçersiz giriş olursa tekrar sorar.
-    """
     while True:
-        sys.stdout.flush()  # GUI subprocess flush
+        sys.stdout.flush()
         answer = input(f"   ⚠️  {label} zaten mevcut. Üzerine yazmak istiyor musunuz? [e/h]: ").strip().lower()
         if answer in ("e", "evet", "y", "yes"):
             return True
@@ -72,7 +66,7 @@ def ask_overwrite(label: str) -> bool:
         print("   Lütfen 'e' (evet) veya 'h' (hayır) girin.")
 
 sys.stdout.flush()  # GUI subprocess flush
-PAGE_NAME = input("Sayfa adı gir (örnek: login, book_flight): ").strip()
+PAGE_NAME = input("Sayfa adı asd girilmesi bekleniyor").strip()
 
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_Android.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_Android.xlsx")
@@ -83,7 +77,7 @@ SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 PLATFORM = "android"
 
 # ---------- Word dosyası kontrolü ----------
-WORD_OVERWRITE = True   # varsayılan: dosya yoksa sorun yok
+WORD_OVERWRITE = True
 if OUTPUT_FMT in ("word", "word+excel") and os.path.exists(WORD_FILE):
     WORD_OVERWRITE = ask_overwrite(f"Word dosyası '{os.path.basename(WORD_FILE)}'")
     if not WORD_OVERWRITE:
@@ -91,7 +85,7 @@ if OUTPUT_FMT in ("word", "word+excel") and os.path.exists(WORD_FILE):
         raise SystemExit(0)
 
 # ---------- Excel sheet kontrolü ----------
-EXCEL_SHEET_OVERWRITE = True   # varsayılan: sheet yoksa sorun yok
+EXCEL_SHEET_OVERWRITE = True
 if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
     try:
         _wb_check = openpyxl.load_workbook(EXCEL_FILE, read_only=True)
@@ -102,7 +96,7 @@ if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
                 raise SystemExit(0)
         _wb_check.close()
     except Exception:
-        pass  # Excel dosyası okunamazsa kontrolü atla, generate_excel hata verir zaten
+        pass
 
 print(f"\n🔧 Platform     : ANDROID")
 print(f"📁 Çıktı formatı: {OUTPUT_FMT}")
@@ -238,6 +232,10 @@ NEW_STATUS_COLOR = {
     "txt": "843C0C",
 }
 
+AI_SUGGESTION_COLOR = {
+    "hdr": "1F4E79", "row": "DEEAF1", "alt": "EBF3F9", "txt": "1F4E79",
+}
+
 # ========================
 # DRIVER & ELEMENT TOPLAMA
 # ========================
@@ -335,6 +333,28 @@ print(f"❌ Missing ID    : {len(grouped[STATUS_MISSING])} adet")
 print(f"{'='*45}\n")
 
 # ========================
+# AI SUGGESTION
+# ========================
+try:
+    from ai_suggestion import enrich_elements
+    all_elements = enrich_elements(all_elements, PLATFORM)
+    grouped = {
+        STATUS_MISSING:   [e for e in all_elements if e["status"] == STATUS_MISSING],
+        STATUS_UNDEFINED: [e for e in all_elements if e["status"] == STATUS_UNDEFINED],
+        STATUS_DUPLICATE: [e for e in all_elements if e["status"] == STATUS_DUPLICATE],
+        STATUS_UNIQUE:    [e for e in all_elements if e["status"] == STATUS_UNIQUE],
+    }
+except ImportError:
+    print("⚠️  ai_suggestion.py bulunamadı. AI Suggestion sütunu boş bırakılacak.")
+    for e in all_elements:
+        e["ai_suggestion"] = ""
+except Exception as ex:
+    print(f"⚠️  AI Suggestion hatası: {ex}. Sütun boş bırakılacak.")
+    for e in all_elements:
+        if "ai_suggestion" not in e:
+            e["ai_suggestion"] = ""
+
+# ========================
 # WORD ÇIKTISI
 # ========================
 def generate_word():
@@ -354,11 +374,10 @@ def generate_word():
     def hex_to_rgb(h):
         return RGBColor(*bytes.fromhex(h))
 
-    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status"]
-    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
-    WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3), Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status", "AI Suggestion"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status", "ai_suggestion"]
+    WIDTHS   = [Inches(1.0), Inches(0.7), Inches(0.8), Inches(1.1), Inches(0.8), Inches(1.2), Inches(0.8), Inches(1.3), Inches(2.0)]
 
-    # Onay önceden alındı: dosya varsa sil, sıfırdan oluştur
     if os.path.exists(WORD_FILE):
         os.remove(WORD_FILE)
     doc = Document()
@@ -381,7 +400,12 @@ def generate_word():
             run = hdr[i].paragraphs[0].runs[0]
             run.bold = True
             run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+            if col_name == "AI Suggestion":
+                hdr_color = AI_SUGGESTION_COLOR["hdr"]
+            elif col_name == "New Status":
+                hdr_color = NEW_STATUS_COLOR["hdr"]
+            else:
+                hdr_color = "2C2C2A"
             add_shading(hdr[i], hdr_color)
             hdr[i].width = WIDTHS[i]
 
@@ -392,6 +416,7 @@ def generate_word():
             palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
             row_hex    = palette["row"] if idx % 2 == 0 else palette["alt"]
             ns_hex     = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
+            ai_hex     = AI_SUGGESTION_COLOR["row"] if idx % 2 == 0 else AI_SUGGESTION_COLOR["alt"]
 
             row_cells = table.add_row().cells
             for i, key in enumerate(COL_KEYS):
@@ -399,13 +424,20 @@ def generate_word():
                     val = elem_id
                 elif key == "new_status":
                     val = new_status
+                elif key == "ai_suggestion":
+                    val = elem.get("ai_suggestion", "")
                 else:
                     val = elem.get(key, "") or ""
 
                 row_cells[i].text  = val
                 row_cells[i].width = WIDTHS[i]
 
-                cell_hex = ns_hex if key == "new_status" else row_hex
+                if key == "ai_suggestion":
+                    cell_hex = ai_hex
+                elif key == "new_status":
+                    cell_hex = ns_hex
+                else:
+                    cell_hex = row_hex
                 add_shading(row_cells[i], cell_hex)
 
                 runs = row_cells[i].paragraphs[0].runs
@@ -416,6 +448,9 @@ def generate_word():
                     elif key == "new_status" and new_status:
                         runs[0].bold           = True
                         runs[0].font.color.rgb = hex_to_rgb(NEW_STATUS_COLOR["txt"])
+                    elif key == "ai_suggestion" and val:
+                        runs[0].font.size      = Pt(7)
+                        runs[0].font.color.rgb = hex_to_rgb(AI_SUGGESTION_COLOR["txt"])
 
     doc.add_paragraph("")
 
@@ -445,16 +480,15 @@ def generate_excel():
     from openpyxl.utils import get_column_letter
     from openpyxl.drawing.image import Image as XLImage
 
-
     THIN     = Side(style="thin")
     BORDER   = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
     CENTER   = Alignment(horizontal="center", vertical="center", wrap_text=True)
     LEFT     = Alignment(horizontal="left",   vertical="center", wrap_text=True)
     HDR_FONT = Font(bold=True, color="FFFFFF", size=10)
 
-    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status"]
-    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status"]
-    WIDTHS   = [22, 16, 16, 26, 18, 32, 14, 28]
+    COLS     = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status", "AI Suggestion"]
+    COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status", "new_status", "ai_suggestion"]
+    WIDTHS   = [22, 16, 16, 26, 18, 32, 14, 28, 45]
 
     DATA_COL_COUNT = len(COLS)
     IMG_COL        = DATA_COL_COUNT + 2
@@ -465,7 +499,6 @@ def generate_excel():
     if not excel_exists and "Sheet" in wb.sheetnames:
         del wb["Sheet"]
 
-    # Onay önceden alındı: sheet varsa sil ve yeniden oluştur
     if PAGE_NAME in wb.sheetnames:
         del wb[PAGE_NAME]
     ws = wb.create_sheet(title=PAGE_NAME)
@@ -481,8 +514,13 @@ def generate_excel():
 
     for ci, col_name in enumerate(COLS, 1):
         c = ws.cell(row=2, column=ci, value=col_name)
-        c.font      = HDR_FONT
-        hdr_color = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
+        c.font = HDR_FONT
+        if col_name == "AI Suggestion":
+            hdr_color = AI_SUGGESTION_COLOR["hdr"]
+        elif col_name == "New Status":
+            hdr_color = NEW_STATUS_COLOR["hdr"]
+        else:
+            hdr_color = "2C2C2A"
         c.fill      = PatternFill("solid", fgColor=hdr_color)
         c.alignment = CENTER
         c.border    = BORDER
@@ -501,19 +539,26 @@ def generate_excel():
         palette  = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
         row_fill = PatternFill("solid", fgColor=palette["row"] if idx % 2 == 0 else palette["alt"])
         ns_fill  = PatternFill("solid", fgColor=NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"])
+        ai_fill  = PatternFill("solid", fgColor=AI_SUGGESTION_COLOR["row"] if idx % 2 == 0 else AI_SUGGESTION_COLOR["alt"])
 
         for ci, key in enumerate(COL_KEYS, 1):
             if key == "element_id":
                 val = elem_id
             elif key == "new_status":
                 val = new_status
+            elif key == "ai_suggestion":
+                val = elem.get("ai_suggestion", "")
             else:
                 val = elem.get(key, "") or ""
 
             c = ws.cell(row=row_num, column=ci, value=val)
             c.border = BORDER
 
-            if key == "new_status":
+            if key == "ai_suggestion":
+                c.fill      = ai_fill
+                c.font      = Font(size=8, color=AI_SUGGESTION_COLOR["txt"])
+                c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+            elif key == "new_status":
                 c.fill = ns_fill
                 if new_status:
                     c.font      = Font(bold=True, color=NEW_STATUS_COLOR["txt"], size=10)
@@ -534,7 +579,7 @@ def generate_excel():
                 c.font      = Font(size=10)
                 c.alignment = LEFT
 
-        ws.row_dimensions[row_num].height = 16
+        ws.row_dimensions[row_num].height = 60  # AI Suggestion için yüksek satır
 
     for ci, w in enumerate(WIDTHS, 1):
         ws.column_dimensions[get_column_letter(ci)].width = w
