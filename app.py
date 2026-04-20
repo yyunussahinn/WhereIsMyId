@@ -17,6 +17,7 @@ Gereksinimler:
 """
 
 import customtkinter as ctk
+from smart_tab import SmartTab
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import subprocess, threading, sys, os, json
@@ -470,21 +471,40 @@ class App(ctk.CTk):
         self.btn_summary.pack(side="left", padx=(0, 8), pady=8)
 
     def _mk_body(self):
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=12, pady=(8, 4))
-        body.columnconfigure(0, weight=0)
-        body.columnconfigure(1, weight=1)
-        body.rowconfigure(0, weight=1)
+        # ── Sekme yapısı ────────────────────────────────────────────────────
+        self.tabview = ctk.CTkTabview(
+            self,
+            fg_color="#F5F0E8",
+            segmented_button_fg_color="#FFFFFF",
+            segmented_button_selected_color="#185FA5",
+            segmented_button_selected_hover_color="#0C447C",
+            segmented_button_unselected_color="#FFFFFF",
+            segmented_button_unselected_hover_color="#EDE8DF",
+            text_color="#2C2416",
+            text_color_disabled="#8C7D6A",
+            corner_radius=10,
+        )
+        self.tabview.pack(fill="both", expand=True, padx=12, pady=(8, 4))
 
-        left = ctk.CTkScrollableFrame(body, width=430, fg_color="#FFFFFF",
-                                       corner_radius=10,
-                                       scrollbar_button_color="#D8D0C0")
+        # ── Sekme 1: Tam Tarama (mevcut UI) ─────────────────────────────────
+        tab1 = self.tabview.add("📋  Tam Tarama")
+        tab1.columnconfigure(0, weight=0)
+        tab1.columnconfigure(1, weight=1)
+        tab1.rowconfigure(0, weight=1)
+
+        left = ctk.CTkScrollableFrame(tab1, width=430, fg_color="#FFFFFF",
+                                      corner_radius=10,
+                                      scrollbar_button_color="#D8D0C0")
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         self._mk_config(left)
 
-        right = ctk.CTkFrame(body, fg_color="#F5F0E8", corner_radius=10)
+        right = ctk.CTkFrame(tab1, fg_color="#F5F0E8", corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew")
         self._mk_log(right)
+
+        # ── Sekme 2: Akıllı Tarama (yeni) ───────────────────────────────────
+        tab2 = self.tabview.add("🎯  Akıllı Tarama")
+        SmartTab(tab2, self).pack(fill="both", expand=True)
 
     # ── Config paneli ─────────────────────────────────────────────────────────
     def _mk_config(self, p):
