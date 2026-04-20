@@ -313,7 +313,7 @@ class ProfilePanel(ctk.CTkFrame):
 
     def _new(self):
         name = simpledialog.askstring(
-            "Yeni Profil", "Profil adı girin\n(örnek: PIA iOS, KZR Android):",
+            "Yeni Profil", "Profil adı girin\n(örnek: Project_1 iOS, Project_2 Android):",
             parent=self.winfo_toplevel())
         if not name or not name.strip():
             return

@@ -6,8 +6,6 @@ tüm sayfa sheetlerini birleştirerek:
   - "Data"    → ham verinin tamamı (pivot için)
   - "Summary" → sayfa bazlı özet tablo
   - "Task"    → sadece New Status = "ID Eklenecek (Waiting Dev)" olanlar
-                New Status hücresi formülle kaynak sheet'e bağlıdır:
-                sheet'te değiştirilen değer Task'a otomatik yansır.
 
 Çalıştırma:
   python build_summary.py
@@ -29,13 +27,14 @@ if _gui_xl:
     EXCEL_FILE = _gui_xl
 
 
-
 SKIP_SHEETS    = {"Data", "Summary", "Task"}
 DATA_START_ROW = 3
-DATA_COL_COUNT = 8   # Element ID(1) Page(2) Type(3) Label(4) Value(5) AccID(6) Status(7) NewStatus(8)
+DATA_COL_COUNT = 9   # Element ID(1) Page(2) Type(3) Label(4) Value(5) AccID(6) Status(7) NewStatus(8) AISuggestion(9)
 
 # New Status kaynak sheet'te kaçıncı kolon?  →  H
 NEW_STATUS_COL_LTR = get_column_letter(8)
+# AI Suggestion kaynak sheet'te kaçıncı kolon? → I
+AI_SUGGESTION_COL_LTR = get_column_letter(9)
 
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
@@ -64,6 +63,10 @@ NEW_STATUS_COLOR = {
     "hdr": "843C0C", "row": "FDE9D9", "alt": "FEF3EC", "txt": "843C0C",
 }
 
+AI_SUGGESTION_COLOR = {
+    "hdr": "1F4E79", "row": "DEEAF1", "alt": "EBF3F9", "txt": "1F4E79",
+}
+
 THIN   = Side(style="thin")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -86,7 +89,6 @@ print(f"📂 {len(page_sheets)} sayfa sheet'i bulundu: {', '.join(page_sheets)}"
 
 # ─────────────────────────────────────────────────────────────
 # 2. Tüm sheetlerden veriyi oku
-#    src_sheet + src_row: Task sheet'teki formül için saklanır
 # ─────────────────────────────────────────────────────────────
 all_rows   = []
 page_stats = {}
@@ -104,9 +106,14 @@ for sheet_name in page_sheets:
         while len(vals) < DATA_COL_COUNT:
             vals.append("")
 
-        element_id, page, typ, label, value, acc_id, status, new_status = vals
+        # Sütun 9'a kadar oku; eski sheetlerde AI Suggestion olmayabilir
+        if len(vals) >= 8:
+            element_id, page, typ, label, value, acc_id, status, new_status = vals[:8]
+            ai_suggestion = vals[8] if len(vals) > 8 else ""
+        else:
+            continue
 
-        if all(v == "" for v in vals):
+        if all(v == "" for v in vals[:8]):
             continue
         if status not in ALL_STATUSES:
             continue
@@ -115,16 +122,17 @@ for sheet_name in page_sheets:
             new_status = get_new_status_default(status)
 
         all_rows.append({
-            "element_id": element_id,
-            "page":       page or sheet_name,
-            "type":       typ,
-            "label":      label,
-            "value":      value,
-            "acc_id":     acc_id,
-            "status":     status,
-            "new_status": new_status,
-            "src_sheet":  sheet_name,
-            "src_row":    src_row,
+            "element_id":   element_id,
+            "page":         page or sheet_name,
+            "type":         typ,
+            "label":        label,
+            "value":        value,
+            "acc_id":       acc_id,
+            "status":       status,
+            "new_status":   new_status,
+            "ai_suggestion": ai_suggestion,
+            "src_sheet":    sheet_name,
+            "src_row":      src_row,
         })
         counts[status] += 1
         found += 1
@@ -138,14 +146,14 @@ for sheet_name in page_sheets:
           f"(toplam {found})")
 
 # ─────────────────────────────────────────────────────────────
-# 3. "Data" sheet'i oluştur  (orijinal — statik değerler)
+# 3. "Data" sheet'i oluştur
 # ─────────────────────────────────────────────────────────────
 if "Data" in wb.sheetnames:
     del wb["Data"]
 wd = wb.create_sheet("Data", 0)
 
-COLS_D   = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status"]
-WIDTHS_D = [22, 20, 16, 26, 18, 32, 14]
+COLS_D   = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "AI Suggestion"]
+WIDTHS_D = [22, 20, 16, 26, 18, 32, 14, 45]
 
 wd.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(COLS_D))
 c = wd.cell(row=1, column=1, value="Accessibility ID — Ham Veri (Tüm Sayfalar)")
@@ -158,7 +166,10 @@ wd.row_dimensions[1].height = 26
 for ci, col_name in enumerate(COLS_D, 1):
     c = wd.cell(row=2, column=ci, value=col_name)
     c.font      = font(bold=True, color="FFFFFF", size=10)
-    c.fill      = fill("2C2C2A")
+    if col_name == "AI Suggestion":
+        c.fill = fill(AI_SUGGESTION_COLOR["hdr"])
+    else:
+        c.fill = fill("2C2C2A")
     c.alignment = CENTER
     c.border    = BORDER
 wd.row_dimensions[2].height = 18
@@ -169,24 +180,31 @@ for idx, row in enumerate(all_rows):
     status   = row["status"]
     palette  = PALETTE.get(status, PALETTE[STATUS_MISSING])
     row_fill = fill(palette["row"] if idx % 2 == 0 else palette["alt"])
+    ai_fill  = fill(AI_SUGGESTION_COLOR["row"] if idx % 2 == 0 else AI_SUGGESTION_COLOR["alt"])
 
     values = [row["element_id"], row["page"], row["type"], row["label"],
-              row["value"], row["acc_id"], row["status"]]
+              row["value"], row["acc_id"], row["status"], row["ai_suggestion"]]
 
     for ci, val in enumerate(values, 1):
         c = wd.cell(row=data_row, column=ci, value=val)
         c.border = BORDER
-        c.fill   = row_fill
-        if ci == 7:   # Status
+        if ci == 8:   # AI Suggestion
+            c.fill      = ai_fill
+            c.font      = Font(size=8, color=AI_SUGGESTION_COLOR["txt"])
+            c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        elif ci == 7: # Status
+            c.fill      = row_fill
             c.font      = font(bold=True, color=palette["txt"], size=10)
             c.alignment = CENTER
         elif ci == 1: # Element ID
+            c.fill      = row_fill
             c.font      = font(bold=True, size=10)
             c.alignment = CENTER
         else:
+            c.fill      = row_fill
             c.font      = font(size=10)
             c.alignment = LEFT
-    wd.row_dimensions[data_row].height = 16
+    wd.row_dimensions[data_row].height = 55
 
 for ci, w in enumerate(WIDTHS_D, 1):
     wd.column_dimensions[get_column_letter(ci)].width = w
@@ -194,7 +212,7 @@ for ci, w in enumerate(WIDTHS_D, 1):
 print(f"\n✅ Data sheet oluşturuldu — {len(all_rows)} satır")
 
 # ─────────────────────────────────────────────────────────────
-# 4. "Summary" sheet'i oluştur  (orijinal)
+# 4. "Summary" sheet'i oluştur  (değişmedi)
 # ─────────────────────────────────────────────────────────────
 if "Summary" in wb.sheetnames:
     del wb["Summary"]
@@ -296,21 +314,17 @@ for ci, w in enumerate(WIDTHS_S, 1):
 print(f"✅ Summary sheet oluşturuldu — {len(page_sheets)} sayfa, {grand_total} element")
 
 # ─────────────────────────────────────────────────────────────
-# 5. "Task" sheet'i oluştur
-#    Sadece new_status == NS_WAITING olan satırlar
-#    New Status sütunu: statik değer değil, formülle kaynak hücreye bağlı
-#      → =login!H5  gibi  (kaynak sheet'te değişince Task'ta da değişir)
+# 5. "Task" sheet'i oluştur  (AI Suggestion sütunu eklendi)
 # ─────────────────────────────────────────────────────────────
 if "Task" in wb.sheetnames:
     del wb["Task"]
-wt = wb.create_sheet("Task", 2)   # Data=0, Summary=1, Task=2
+wt = wb.create_sheet("Task", 2)
 
-# Sadece Waiting Dev olanları filtrele
 task_rows = [r for r in all_rows if r["new_status"] == NS_WAITING]
 
-COLS_T   = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status"]
-COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status"]   # new_status formülle gelecek
-WIDTHS_T = [22, 20, 16, 26, 18, 32, 14, 28]
+COLS_T   = ["Element ID", "Page", "Type", "Label / Text", "Value", "Resource ID", "Status", "New Status", "AI Suggestion"]
+COL_KEYS = ["element_id", "page", "type", "label", "value", "acc_id", "status"]  # new_status ve ai_suggestion formülle
+WIDTHS_T = [22, 20, 16, 26, 18, 32, 14, 28, 45]
 
 # Başlık satırı
 wt.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(COLS_T))
@@ -326,7 +340,12 @@ wt.row_dimensions[1].height = 26
 for ci, col_name in enumerate(COLS_T, 1):
     c = wt.cell(row=2, column=ci, value=col_name)
     c.font      = font(bold=True, color="FFFFFF", size=10)
-    c.fill      = fill(NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A")
+    if col_name == "AI Suggestion":
+        c.fill = fill(AI_SUGGESTION_COLOR["hdr"])
+    elif col_name == "New Status":
+        c.fill = fill(NEW_STATUS_COLOR["hdr"])
+    else:
+        c.fill = fill("2C2C2A")
     c.alignment = CENTER
     c.border    = BORDER
 wt.row_dimensions[2].height = 18
@@ -339,6 +358,7 @@ for idx, row in enumerate(task_rows):
     palette  = PALETTE.get(status, PALETTE[STATUS_MISSING])
     row_fill = fill(palette["row"] if idx % 2 == 0 else palette["alt"])
     ns_fill  = fill(NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"])
+    ai_fill  = fill(AI_SUGGESTION_COLOR["row"] if idx % 2 == 0 else AI_SUGGESTION_COLOR["alt"])
 
     # Sütun 1–7: statik değerler
     for ci, key in enumerate(COL_KEYS, 1):
@@ -354,21 +374,28 @@ for idx, row in enumerate(task_rows):
         else:
             c.font      = font(size=10)
             c.alignment = LEFT
-    wt.row_dimensions[task_row].height = 16
+    wt.row_dimensions[task_row].height = 55
 
     # Sütun 8: New Status → formülle kaynak hücreye bağla
-    # Örnek: =login!H5  veya  ='book flight'!H12
-    formula = f"={sheet_ref(row['src_sheet'])}!{NEW_STATUS_COL_LTR}{row['src_row']}"
-    c = wt.cell(row=task_row, column=8, value=formula)
+    formula_ns = f"={sheet_ref(row['src_sheet'])}!{NEW_STATUS_COL_LTR}{row['src_row']}"
+    c = wt.cell(row=task_row, column=8, value=formula_ns)
     c.border    = BORDER
     c.fill      = ns_fill
     c.font      = font(bold=True, color=NEW_STATUS_COLOR["txt"], size=10)
     c.alignment = CENTER
 
+    # Sütun 9: AI Suggestion → formülle kaynak hücreye bağla
+    formula_ai = f"={sheet_ref(row['src_sheet'])}!{AI_SUGGESTION_COL_LTR}{row['src_row']}"
+    c = wt.cell(row=task_row, column=9, value=formula_ai)
+    c.border    = BORDER
+    c.fill      = ai_fill
+    c.font      = Font(size=8, color=AI_SUGGESTION_COLOR["txt"])
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+
 for ci, w in enumerate(WIDTHS_T, 1):
     wt.column_dimensions[get_column_letter(ci)].width = w
 
-print(f"✅ Task sheet oluşturuldu — {len(task_rows)} satır (New Status formülle bağlandı)")
+print(f"✅ Task sheet oluşturuldu — {len(task_rows)} satır (New Status + AI Suggestion formülle bağlandı)")
 
 # ─────────────────────────────────────────────────────────────
 # 6. Kaydet
@@ -376,5 +403,5 @@ print(f"✅ Task sheet oluşturuldu — {len(task_rows)} satır (New Status form
 wb.save(EXCEL_FILE)
 print(f"\n📊 Dosya güncellendi: {EXCEL_FILE}")
 print(f"   Sheet sırası: Data → Summary → Task → {' → '.join(page_sheets)}")
-print(f"\n💡 Task sheet'indeki New Status formülle bağlı.")
+print(f"\n💡 Task sheet'indeki New Status ve AI Suggestion formülle bağlı.")
 print(f"   Developer/QA kaynak sheet'te güncellediğinde Task otomatik yansır.")
