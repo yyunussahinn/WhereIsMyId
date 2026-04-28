@@ -5,7 +5,8 @@ Ortak sabitler, renk paleti, stil yardımcıları ve çıktı üreticileri.
 element_checker_ios.py, element_checker_android.py ve build_summary.py
 tarafından import edilir.
 """
-
+import json as _json
+import os as _os
 import os
 import sys
 import tempfile
@@ -237,6 +238,84 @@ def generate_excel(
         except OSError:
             pass
 
+
+def generate_json(
+        elements: list,
+        page_name: str,
+        json_file: str,
+        platform: str,
+) -> None:
+    """
+    Sadece STATUS_UNIQUE elementler için JSON dosyası üretir.
+
+    Her entry, AI Suggestion sütunundaki JSON objesinden direkt parse edilir:
+    {
+        "key":           "availSearchDepDateCardView",
+        "androidValue":  "avail_search_dep_date_card",
+        "androidType":   "id",
+        "iosValue":      "avail_search_dep_date_card",
+        "iosType":       "accessibilityId"
+    }
+
+    AI suggestion parse edilemezse (boş/ham metin) o element atlanır.
+    Dosya ismi: {PAGE_NAME}_android.json / {PAGE_NAME}_ios.json
+    """
+
+    unique_elements = [
+        e for e in elements
+        if e.get("acc_id") and e.get("status") == STATUS_UNIQUE
+    ]
+
+    output = []
+    skipped = 0
+
+    for el in unique_elements:
+        raw_ai = (el.get("ai_suggestion") or "").strip()
+        if not raw_ai:
+            skipped += 1
+            continue
+
+        # AI suggestion sütunu bazen birden fazla JSON bloğu içerebilir.
+        # Önce tek obje olarak parse etmeyi dene, olmazsa ilk bloğu çıkar.
+        parsed = None
+        try:
+            parsed = _json.loads(raw_ai)
+        except _json.JSONDecodeError:
+            # Baştaki/sondaki süslü parantez arasını bul
+            start = raw_ai.find("{")
+            end = raw_ai.rfind("}") + 1
+            if start != -1 and end > start:
+                try:
+                    parsed = _json.loads(raw_ai[start:end])
+                except _json.JSONDecodeError:
+                    pass
+
+        if not isinstance(parsed, dict):
+            skipped += 1
+            continue
+
+        # Sadece istenen 5 alanı al; eksik alanlar boş string kalır
+        entry = {
+            "key": parsed.get("key", ""),
+            "androidValue": parsed.get("androidValue", ""),
+            "androidType": parsed.get("androidType", ""),
+            "iosValue": parsed.get("iosValue", ""),
+            "iosType": parsed.get("iosType", ""),
+        }
+        output.append(entry)
+
+    _os.makedirs(
+        _os.path.dirname(json_file) if _os.path.dirname(json_file) else ".",
+        exist_ok=True,
+    )
+
+    with open(json_file, "w", encoding="utf-8") as f:
+        _json.dump(output, f, indent=2, ensure_ascii=False)
+
+    print(f"\n📄 JSON dosyası oluşturuldu : {json_file}")
+    print(f"   ✅ Yazılan  : {len(output)} element")
+    if skipped:
+        print(f"   ⚠️  Atlanan  : {skipped} (AI suggestion parse edilemedi)")
 
 # ── Word çıktı üreticisi ──────────────────────────────────────────────────────
 def generate_word(

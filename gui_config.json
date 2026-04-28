@@ -1,7 +1,7 @@
 {
   "platform": "android",
   "output_format": "word+excel",
-  "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/whereismyid_reports",
+  "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/Test",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
     "unique",
@@ -48,6 +48,12 @@
       "platform_version": "9",
       "app_package": "test.kz.flyarystan",
       "app_activity": "kz.flyarystan.MainActivity"
+    },
+    "sahibinden": {
+      "device_name": "ce04171418dee0010c",
+      "platform_version": "9",
+      "app_package": "com.sahibinden",
+      "app_activity": "com.sahibinden.app.main.ui.MainActivity"
     }
   },
   "active_android_profile": "PIA Android"

@@ -1,7 +1,7 @@
 """
 element_checker_android.py — Where is My Id
 ────────────────────────────────────────────
-Android UiAutomator2 element tarama + Word/Excel çıktı üretimi.
+Android UiAutomator2 element tarama + Word/Excel/JSON çıktı üretimi.
 Ortak sabitler ve çıktı fonksiyonları: shared.py
 """
 
@@ -14,10 +14,10 @@ from collections import Counter
 def _check_deps() -> None:
     missing = []
     for pkg, pip_name in [
-        ("docx",   "python-docx"),
+        ("docx",    "python-docx"),
         ("openpyxl","openpyxl"),
-        ("PIL",    "Pillow"),
-        ("appium", "Appium-Python-Client"),
+        ("PIL",     "Pillow"),
+        ("appium",  "Appium-Python-Client"),
     ]:
         try:
             __import__(pkg)
@@ -58,6 +58,7 @@ PAGE_NAME = input("Sayfa adı gir").strip()
 
 WORD_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_elements_Android.docx")
 EXCEL_FILE      = os.path.join(OUTPUT_DIR, "Elements_Report_Android.xlsx")
+JSON_FILE       = os.path.join(OUTPUT_DIR, f"{PAGE_NAME}_android.json")
 SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_android")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
@@ -75,6 +76,10 @@ if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
             print("\n🚫 İşlem iptal edildi.\n"); raise SystemExit(0)
     except openpyxl.utils.exceptions.InvalidFileException:
         pass
+
+if os.path.exists(JSON_FILE):
+    if not sh.ask_overwrite(f"JSON dosyası '{os.path.basename(JSON_FILE)}'"):
+        print("\n🚫 İşlem iptal edildi.\n"); raise SystemExit(0)
 
 print(f"\n🔧 Platform     : ANDROID")
 print(f"📁 Çıktı formatı: {OUTPUT_FMT}")
@@ -216,7 +221,7 @@ print(f"🔁 Duplicate ID  : {len(_grouped[sh.STATUS_DUPLICATE])}")
 print(f"❌ Missing ID    : {len(_grouped[sh.STATUS_MISSING])}")
 print("=" * 45 + "\n")
 
-# AI Suggestion
+# AI Suggestion — önce enrich et, JSON da bu veriyi kullanır
 all_elements = sh.enrich_with_ai(all_elements, PLATFORM)
 
 # ── Çıktı üret ────────────────────────────────────────────────────────────────
@@ -226,3 +231,6 @@ if OUTPUT_FMT in ("word", "word+excel"):
 if OUTPUT_FMT in ("excel", "word+excel"):
     sh.generate_excel(all_elements, PAGE_NAME, EXCEL_FILE,
                       DOCUMENT_SECTIONS, PLATFORM, SCREENSHOT_PATH)
+
+# JSON — OUTPUT_FORMAT'tan bağımsız, her zaman üretilir
+sh.generate_json(all_elements, PAGE_NAME, JSON_FILE, PLATFORM)
