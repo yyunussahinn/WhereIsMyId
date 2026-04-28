@@ -44,8 +44,17 @@ DOCUMENT_SECTIONS = [s.strip().lower() for s in cfg.DOCUMENT_SECTIONS]
 PLATFORM          = "android"
 BLACKLIST         = set(cfg.BLACKLIST_IDS)
 
-if OUTPUT_FMT not in {"word", "excel", "word+excel"}:
-    raise ValueError(f"config.py — Geçersiz OUTPUT_FORMAT: '{OUTPUT_FMT}'")
+# Geçerli format parçaları
+_VALID_PARTS = {"word", "excel", "json"}
+_fmt_parts   = set(OUTPUT_FMT.split("+"))
+if not _fmt_parts or not _fmt_parts.issubset(_VALID_PARTS):
+    raise ValueError(f"config.py — Geçersiz OUTPUT_FORMAT: '{OUTPUT_FMT}'. "
+                     f"Geçerli değerler: word, excel, json (+ ile birleştirilebilir)")
+
+OUT_WORD  = "word"  in _fmt_parts
+OUT_EXCEL = "excel" in _fmt_parts
+OUT_JSON  = "json"  in _fmt_parts
+
 for _s in DOCUMENT_SECTIONS:
     if _s not in {"missing", "undefined", "duplicate", "unique"}:
         raise ValueError(f"config.py — Geçersiz DOCUMENT_SECTIONS değeri: '{_s}'")
@@ -63,11 +72,11 @@ SCREENSHOT_DIR  = os.path.join(OUTPUT_DIR, "screenshots_android")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 SCREENSHOT_PATH = os.path.join(SCREENSHOT_DIR, f"{PAGE_NAME}.png")
 
-if OUTPUT_FMT in ("word", "word+excel") and os.path.exists(WORD_FILE):
+if OUT_WORD and os.path.exists(WORD_FILE):
     if not sh.ask_overwrite(f"Word dosyası '{os.path.basename(WORD_FILE)}'"):
         print("\n🚫 İşlem iptal edildi.\n"); raise SystemExit(0)
 
-if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
+if OUT_EXCEL and os.path.exists(EXCEL_FILE):
     try:
         _wb = openpyxl.load_workbook(EXCEL_FILE, read_only=True)
         _has_sheet = PAGE_NAME in _wb.sheetnames
@@ -77,7 +86,7 @@ if OUTPUT_FMT in ("excel", "word+excel") and os.path.exists(EXCEL_FILE):
     except openpyxl.utils.exceptions.InvalidFileException:
         pass
 
-if os.path.exists(JSON_FILE):
+if OUT_JSON and os.path.exists(JSON_FILE):
     if not sh.ask_overwrite(f"JSON dosyası '{os.path.basename(JSON_FILE)}'"):
         print("\n🚫 İşlem iptal edildi.\n"); raise SystemExit(0)
 
@@ -221,16 +230,17 @@ print(f"🔁 Duplicate ID  : {len(_grouped[sh.STATUS_DUPLICATE])}")
 print(f"❌ Missing ID    : {len(_grouped[sh.STATUS_MISSING])}")
 print("=" * 45 + "\n")
 
-# AI Suggestion — önce enrich et, JSON da bu veriyi kullanır
+# AI Suggestion — önce enrich et
 all_elements = sh.enrich_with_ai(all_elements, PLATFORM)
 
 # ── Çıktı üret ────────────────────────────────────────────────────────────────
-if OUTPUT_FMT in ("word", "word+excel"):
+if OUT_WORD:
     sh.generate_word(all_elements, PAGE_NAME, WORD_FILE,
                      DOCUMENT_SECTIONS, PLATFORM, SCREENSHOT_PATH)
-if OUTPUT_FMT in ("excel", "word+excel"):
+
+if OUT_EXCEL:
     sh.generate_excel(all_elements, PAGE_NAME, EXCEL_FILE,
                       DOCUMENT_SECTIONS, PLATFORM, SCREENSHOT_PATH)
 
-# JSON — OUTPUT_FORMAT'tan bağımsız, her zaman üretilir
-sh.generate_json(all_elements, PAGE_NAME, JSON_FILE, PLATFORM)
+if OUT_JSON:
+    sh.generate_json(all_elements, PAGE_NAME, JSON_FILE, PLATFORM)
