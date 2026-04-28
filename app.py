@@ -1,5 +1,5 @@
 """
-Where is My Id — GUI  v4.0
+Where is My Id — GUI  v4.1
 ──────────────────────────────────────────────────────────────
 Özellikler:
   1. Platform toggle  → yalnızca ilgili ayar paneli görünür
@@ -11,6 +11,7 @@ Where is My Id — GUI  v4.0
   5. Sayfa adı        → footer'daki kutucuğa önceden girilir,
                         script başladığında otomatik gönderilir
   7. Profil isimleri  → PIA iOS, KZR Android vb.
+  8. Çıktı formatı    → Word / Excel / JSON checkbox (en az biri seçili olmalı)
 
 Gereksinimler:
   pip install customtkinter pillow
@@ -64,7 +65,8 @@ _D_AND = {
     "app_activity": "com.piamobile.MainActivity",
 }
 DEFAULT_CFG = {
-    "platform": "ios", "output_format": "word+excel",
+    "platform": "ios",
+    "output_word": True, "output_excel": True, "output_json": False,
     "output_dir": "", "appium_server": "http://127.0.0.1:4723",
     "document_sections": ["unique", "undefined", "duplicate", "missing"],
     "blacklist_ids": ["statusBarBackground","content","action_bar_root","navigationBarBackground"],
@@ -81,6 +83,12 @@ def load_config():
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             cfg = {**DEFAULT_CFG, **data}
+            # Eski format uyumluluğu: output_format string varsa dönüştür
+            if "output_format" in cfg and "output_word" not in cfg:
+                fmt = cfg["output_format"]
+                cfg["output_word"]  = "word"  in fmt
+                cfg["output_excel"] = "excel" in fmt
+                cfg["output_json"]  = "json"  in fmt
             cfg.setdefault("ios_profiles",     {"PIA iOS":     _D_IOS.copy()})
             cfg.setdefault("android_profiles", {"PIA Android": _D_AND.copy()})
             return cfg
@@ -92,6 +100,15 @@ def load_config():
 def save_config(cfg):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+def _build_output_format(cfg) -> str:
+    """word / excel / json seçimlerinden OUTPUT_FORMAT string üret."""
+    parts = []
+    if cfg.get("output_word"):  parts.append("word")
+    if cfg.get("output_excel"): parts.append("excel")
+    if cfg.get("output_json"):  parts.append("json")
+    return "+".join(parts) if parts else "word"
 
 
 def write_config_py(cfg, path):
@@ -118,13 +135,14 @@ def write_config_py(cfg, path):
             f'    "app_activity":     "{p["app_activity"]}",\n'
             '    "no_reset":         True,\n}\nIOS = {}\n'
         )
-    bl  = json.dumps(cfg.get("blacklist_ids", []))
-    sec = json.dumps(cfg.get("document_sections", []))
-    od  = cfg.get("output_dir", "").replace("\\", "/")
+    bl      = json.dumps(cfg.get("blacklist_ids", []))
+    sec     = json.dumps(cfg.get("document_sections", []))
+    od      = cfg.get("output_dir", "").replace("\\", "/")
+    out_fmt = _build_output_format(cfg)
     txt = (
         f'# WHERE IS MY ID — config.py  ({datetime.now():%d.%m.%Y %H:%M})\n'
         f'PLATFORM = "{platform}"\nBLACKLIST_IDS = {bl}\n'
-        f'OUTPUT_FORMAT = "{cfg["output_format"]}"\nDOCUMENT_SECTIONS = {sec}\n'
+        f'OUTPUT_FORMAT = "{out_fmt}"\nDOCUMENT_SECTIONS = {sec}\n'
         f'OUTPUT_DIR = "{od}"\nAPPIUM_SERVER = "{cfg["appium_server"]}"\n{plat}'
     )
     with open(path, "w", encoding="utf-8") as f:
@@ -374,7 +392,9 @@ class App(ctk.CTk):
     # ── Tkinter değişkenleri ─────────────────────────────────────────────────
     def _mk_vars(self):
         self.v_platform      = tk.StringVar(value="ios")
-        self.v_out_fmt       = tk.StringVar(value="word+excel")
+        self.v_out_word      = tk.BooleanVar(value=True)
+        self.v_out_excel     = tk.BooleanVar(value=True)
+        self.v_out_json      = tk.BooleanVar(value=False)
         self.v_out_dir       = tk.StringVar()
         self.v_appium        = tk.StringVar()
         self.v_blacklist     = tk.StringVar()
@@ -387,7 +407,9 @@ class App(ctk.CTk):
     def _apply_cfg(self):
         c = self.cfg
         self.v_platform.set(c["platform"])
-        self.v_out_fmt.set(c["output_format"])
+        self.v_out_word.set(c.get("output_word", True))
+        self.v_out_excel.set(c.get("output_excel", True))
+        self.v_out_json.set(c.get("output_json", False))
         self.v_out_dir.set(c["output_dir"])
         self.v_appium.set(c["appium_server"])
         self.v_blacklist.set(", ".join(c.get("blacklist_ids", [])))
@@ -415,7 +437,7 @@ class App(ctk.CTk):
                      font=FS, text_color="black").pack(side="left", padx=4)
         self.badge = Badge(hdr)
         self.badge.pack(side="right", padx=20)
-        ctk.CTkLabel(hdr, text="v4.0", font=FB, text_color="black").pack(side="right", padx=4)
+        ctk.CTkLabel(hdr, text="v4.1", font=FB, text_color="black").pack(side="right", padx=4)
 
     def _mk_footer(self):
         foot = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=0, height=66)
@@ -531,17 +553,29 @@ class App(ctk.CTk):
            "http://127.0.0.1:4723").pack(fill="x", padx=14, pady=3)
         LE(p, "Cikti Klasoru", self.v_out_dir,
            "/path/to/output", browse_dir=True).pack(fill="x", padx=14, pady=3)
-        fr = ctk.CTkFrame(p, fg_color="transparent")
-        fr.pack(fill="x", padx=14, pady=3)
-        ctk.CTkLabel(fr, text="Cikti Formati", font=FS,
+
+        # ── Çıktı Formatı — Checkbox grubu ──────────────────────────────────
+        fmt_row = ctk.CTkFrame(p, fg_color="transparent")
+        fmt_row.pack(fill="x", padx=14, pady=3)
+        ctk.CTkLabel(fmt_row, text="Cikti Formati", font=FS,
                      text_color=T_MUT, width=155, anchor="w").pack(side="left")
-        ctk.CTkOptionMenu(
-            fr, values=["word+excel", "excel", "word"],
-            variable=self.v_out_fmt,
-            fg_color=BG_INPUT, button_color=BG_CARD,
-            button_hover_color=BG_PANEL, text_color=T_PRI,
-            font=FS, dropdown_fg_color=BG_CARD, corner_radius=6
-        ).pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        fmt_box = ctk.CTkFrame(fmt_row, fg_color="#EDE8DF", corner_radius=6)
+        fmt_box.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        for lbl, var, color in [
+            ("📄 Word",  self.v_out_word,  "#185FA5"),
+            ("📊 Excel", self.v_out_excel, "#2D6A2D"),
+            ("🗂 JSON",  self.v_out_json,  "#8C6A10"),
+        ]:
+            cb = ctk.CTkCheckBox(
+                fmt_box, text=lbl, variable=var, font=FS,
+                text_color=T_PRI, fg_color=color, hover_color=color,
+                checkmark_color="#FFFFFF", border_color="#B0A898",
+                command=self._validate_output_format,
+            )
+            cb.pack(anchor="w", padx=(10, 6), pady=6)
+        # ────────────────────────────────────────────────────────────────────
 
         # Rapor bölümleri
         SecHdr(p, "RAPOR BOLUMLERI").pack(fill="x", **pad)
@@ -589,6 +623,15 @@ class App(ctk.CTk):
                      fg_color=BG_INPUT, border_color="#D8D0C0",
                      text_color=T_PRI, font=FS, corner_radius=6
                      ).pack(fill="x", pady=(2, 0))
+
+    # ── Çıktı format doğrulama — en az 1 seçili zorunlu ──────────────────────
+    def _validate_output_format(self):
+        """Hiçbiri seçili değilse son işareti kaldırmayı engelle."""
+        if not any([self.v_out_word.get(), self.v_out_excel.get(), self.v_out_json.get()]):
+            # Hangisinin işareti kaldırıldığını bilemeyiz; en azından Word'ü geri aç
+            self.v_out_word.set(True)
+            messagebox.showwarning(
+                "Uyarı", "En az bir çıktı formatı seçili olmalı.\n'Word' tekrar seçildi.")
 
     # ── Log paneli ────────────────────────────────────────────────────────────
     def _mk_log(self, p):
@@ -737,7 +780,9 @@ class App(ctk.CTk):
         bl = [x.strip() for x in self.v_blacklist.get().split(",") if x.strip()]
         return {
             "platform":               self.v_platform.get(),
-            "output_format":          self.v_out_fmt.get(),
+            "output_word":            self.v_out_word.get(),
+            "output_excel":           self.v_out_excel.get(),
+            "output_json":            self.v_out_json.get(),
             "output_dir":             self.v_out_dir.get(),
             "appium_server":          self.v_appium.get(),
             "document_sections":      secs,
@@ -751,6 +796,8 @@ class App(ctk.CTk):
     def _validate(self, cfg):
         if not cfg["output_dir"]:         return "Cikti klasoru bos olamaz."
         if not cfg["document_sections"]:  return "En az bir rapor bolumu secilmeli."
+        if not any([cfg["output_word"], cfg["output_excel"], cfg["output_json"]]):
+            return "En az bir cikti formati secilmeli."
         if cfg["platform"] == "ios":
             if not cfg["ios_profiles"].get(
                     cfg["active_ios_profile"], {}).get("bundle_id"):
@@ -803,7 +850,8 @@ class App(ctk.CTk):
 
         self._clear_log()
         active = cfg[f"active_{platform}_profile"]
-        self._log(f"Platform: {platform.upper()}  |  Profil: {active}", "info")
+        fmt_str = _build_output_format(cfg)
+        self._log(f"Platform: {platform.upper()}  |  Profil: {active}  |  Format: {fmt_str}", "info")
         self._log("-" * 60, "dim")
         self._set_busy(True)
         self._pn_ev.clear()
@@ -859,10 +907,6 @@ class App(ctk.CTk):
             messagebox.showerror("Hata", f"build_summary.py bulunamadi:\n{spath}")
             return
 
-        # build_summary.py'nin EXCEL_FILE sabitini override etmek için
-        # argüman ya da env var ile geçebiliriz.
-        # Basit yaklaşım: script içine argparse eklemek yerine
-        # burada geçici bir wrapper env var kullanalım.
         cfg = self._collect()
         save_config(cfg)
         self.cfg = cfg
@@ -881,11 +925,6 @@ class App(ctk.CTk):
 
     # ── Subprocess stream (karakter tabanlı) ──────────────────────────────────
     def _stream(self, cmd, cwd, done_cb, xl_override=None):
-        """
-        stdout karakteri karakter okur.
-        Sayfa adi sorusu gelince GUI input frame gosterilir,
-        kullanici girince event ile devam edilir.
-        """
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         if xl_override:
@@ -900,16 +939,13 @@ class App(ctk.CTk):
             )
             buf = ""
 
-            page_asked = False   # sayfa adi sorusu bir kez sorulur
+            page_asked = False
 
             def _normalize(s):
-                # Turkce i/I karakterlerini ASCII'ye esle, trigger eslesmesi icin
                 return s.replace("\u0131", "i").replace("\u0130", "i").lower()
 
             def _is_page_prompt(text):
                 n = _normalize(text)
-                # Tam olarak input() sorusu: "sayfa adi gir" icermeli
-                # Cikti satirlari ("Sayfa adi : test2") "gir" icermez
                 return "sayfa adi gir" in n or "sayfa ad" in n and "gir" in n
 
             def handle(line):
@@ -931,7 +967,6 @@ class App(ctk.CTk):
                     return
 
                 if "uezerine yazmak istiyor musunuz" in norm or "[e/h]" in low:
-                    # Kisa etiket: parantez icini al, max 60 karakter
                     import re as _re
                     m = _re.search(r"'([^']+)'", line)
                     short = m.group(1) if m else line
@@ -959,14 +994,11 @@ class App(ctk.CTk):
                         handle(line)
                 else:
                     buf += ch
-                    # Buffer'da prompt tespiti: sadece henuz sorulmadiysa
-                    # ve tam "gir" kelimesi de geldiyse tetikle
                     if not page_asked:
                         nb = _normalize(buf)
                         if "sayfa adi gir" in nb:
                             handle(buf.strip())
                             buf = ""
-                    # e/h sorusu buffer tespiti
                     if "[e/h]:" in buf.lower():
                         handle(buf.strip())
                         buf = ""
@@ -1009,8 +1041,8 @@ class App(ctk.CTk):
             self._log("Process durduruldu.", "warn")
         self._set_busy(False)
         self.badge.set("idle")
-        self._pn_ev.set()   # deadlock onlemek icin event'i serbest birak
-        self._ow_ev.set()   # overwrite event da serbest
+        self._pn_ev.set()
+        self._ow_ev.set()
         self.after(0, self._hide_page_input)
         self.after(0, self._hide_overwrite)
 

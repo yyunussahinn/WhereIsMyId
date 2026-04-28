@@ -1,6 +1,8 @@
 {
-  "platform": "android",
-  "output_format": "word+excel",
+  "platform": "ios",
+  "output_word": true,
+  "output_excel": true,
+  "output_json": true,
   "output_dir": "/Users/yunus.sahin/Library/CloudStorage/OneDrive-TESTINIUMTeknolojiYazılımA.Ş/Test",
   "appium_server": "http://127.0.0.1:4723",
   "document_sections": [
