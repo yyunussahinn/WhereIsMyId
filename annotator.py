@@ -3,6 +3,9 @@ annotator.py
 ────────────────────────────────────────────────────────────────
 Ekran görüntüsü üzerine mouse ile kırmızı kare çizme penceresi.
 
+v4.2: Pencere boyutu küçültüldü (MAX_W=700, MAX_H=520),
+      butonlar daima görünür olacak şekilde pencere boyutu hesaplanıyor.
+
 Kullanım (standalone test):
     python annotator.py /yol/screenshot.png
 
@@ -30,8 +33,9 @@ ACCENT    = "#000000"
 BOX_COLOR = "#FF2020"
 BOX_WIDTH = 2
 
-MAX_W = 900
-MAX_H = 700
+# ── Pencere boyut sınırları (küçültüldü — butonlar görünür kalsın) ────────────
+MAX_W = 700   # önceki: 900
+MAX_H = 520   # önceki: 700
 
 
 def open_annotator(parent, image_path: str) -> list:
@@ -61,45 +65,61 @@ def open_annotator(parent, image_path: str) -> list:
     win.protocol("WM_DELETE_WINDOW", win.destroy)
 
     # ── Başlık ──────────────────────────────────────────────────────────────
-    hdr = tk.Frame(win, bg=BG_PANEL, height=46)
+    hdr = tk.Frame(win, bg=BG_PANEL, height=40)
     hdr.pack(fill="x")
     hdr.pack_propagate(False)
     tk.Label(hdr, text="📍  ELEMENT ANNOTATION",
-             font=("Courier New", 13, "bold"),
+             font=("Courier New", 11, "bold"),
              bg=BG_PANEL, fg=ACCENT).pack(side="left", padx=16)
     tk.Label(hdr, text="Mouse ile elementleri kare içine alın",
-             font=("Courier New", 10),
+             font=("Courier New", 9),
              bg=BG_PANEL, fg=T_MUT).pack(side="left", padx=4)
 
-    # ── Canvas ──────────────────────────────────────────────────────────────
-    cf = tk.Frame(win, bg="#2C2416", padx=2, pady=2)
-    cf.pack(padx=16, pady=(10, 6))
+    # ── Canvas (scroll destekli) ─────────────────────────────────────────────
+    canvas_frame = tk.Frame(win, bg="#2C2416")
+    canvas_frame.pack(padx=10, pady=(6, 4), fill="both", expand=True)
 
-    canvas = tk.Canvas(cf, width=disp_w, height=disp_h,
-                       cursor="crosshair", highlightthickness=0)
-    canvas.pack()
+    # Scrollbar'lar (büyük ekranlarda da çalışsın)
+    v_scroll = tk.Scrollbar(canvas_frame, orient="vertical")
+    h_scroll = tk.Scrollbar(canvas_frame, orient="horizontal")
+    v_scroll.pack(side="right", fill="y")
+    h_scroll.pack(side="bottom", fill="x")
 
-    # Görüntüyü canvas'a yerleştir — referansı canvas objesinde sakla
+    canvas = tk.Canvas(
+        canvas_frame,
+        width=min(disp_w, MAX_W),
+        height=min(disp_h, MAX_H),
+        cursor="crosshair",
+        highlightthickness=0,
+        yscrollcommand=v_scroll.set,
+        xscrollcommand=h_scroll.set,
+        scrollregion=(0, 0, disp_w, disp_h),
+    )
+    canvas.pack(side="left", fill="both", expand=True)
+    v_scroll.config(command=canvas.yview)
+    h_scroll.config(command=canvas.xview)
+
+    # Görüntüyü canvas'a yerleştir
     tk_img = ImageTk.PhotoImage(pil_disp)
-    canvas.tk_img = tk_img          # GC'den koru
+    canvas.tk_img = tk_img
     canvas.create_image(0, 0, anchor="nw", image=tk_img, tags="bg")
 
     # ── Info bar ────────────────────────────────────────────────────────────
     info_var = tk.StringVar(value="0 kare çizildi")
-    info_bar = tk.Frame(win, bg=BG_INPUT, height=28)
-    info_bar.pack(fill="x", padx=16)
+    info_bar = tk.Frame(win, bg=BG_INPUT, height=24)
+    info_bar.pack(fill="x", padx=10)
     info_bar.pack_propagate(False)
     tk.Label(info_bar, textvariable=info_var,
-             font=("Courier New", 9), bg=BG_INPUT, fg=T_MUT,
-             anchor="w").pack(side="left", padx=10)
+             font=("Courier New", 8), bg=BG_INPUT, fg=T_MUT,
+             anchor="w").pack(side="left", padx=8)
     tk.Label(info_bar,
              text=f"Ölçek: {scale:.2f}x  |  Orijinal: {orig_w}×{orig_h}px",
-             font=("Courier New", 9), bg=BG_INPUT, fg=T_MUT
-             ).pack(side="right", padx=10)
+             font=("Courier New", 8), bg=BG_INPUT, fg=T_MUT
+             ).pack(side="right", padx=8)
 
     # ── Butonlar ────────────────────────────────────────────────────────────
     btn_frame = tk.Frame(win, bg=BG_MAIN)
-    btn_frame.pack(fill="x", padx=16, pady=10)
+    btn_frame.pack(fill="x", padx=10, pady=6)
 
     left_btns  = tk.Frame(btn_frame, bg=BG_MAIN)
     left_btns.pack(side="left")
@@ -107,7 +127,7 @@ def open_annotator(parent, image_path: str) -> list:
     right_btns.pack(side="right")
 
     # ── State ────────────────────────────────────────────────────────────────
-    rects      = []        # [(rect_id, label_id, orig_box), ...]
+    rects      = []
     drag_start = [None]
     tmp_rect   = [None]
 
@@ -125,21 +145,22 @@ def open_annotator(parent, image_path: str) -> list:
 
     # ── Mouse olayları ───────────────────────────────────────────────────────
     def on_press(e):
-        drag_start[0] = (e.x, e.y)
+        drag_start[0] = (canvas.canvasx(e.x), canvas.canvasy(e.y))
         tmp_rect[0] = canvas.create_rectangle(
-            e.x, e.y, e.x, e.y,
+            drag_start[0][0], drag_start[0][1],
+            drag_start[0][0], drag_start[0][1],
             outline=BOX_COLOR, width=BOX_WIDTH, dash=(4, 2))
 
     def on_drag(e):
         if tmp_rect[0] and drag_start[0]:
             x0, y0 = drag_start[0]
-            canvas.coords(tmp_rect[0], x0, y0, e.x, e.y)
+            canvas.coords(tmp_rect[0], x0, y0, canvas.canvasx(e.x), canvas.canvasy(e.y))
 
     def on_release(e):
         if not drag_start[0]:
             return
         x0, y0 = drag_start[0]
-        x1, y1 = e.x, e.y
+        x1, y1 = canvas.canvasx(e.x), canvas.canvasy(e.y)
 
         if abs(x1 - x0) < 10 or abs(y1 - y0) < 10:
             canvas.delete(tmp_rect[0])
@@ -160,7 +181,7 @@ def open_annotator(parent, image_path: str) -> list:
             cx0 + 4, cy0 + 2, anchor="nw",
             text=str(len(rects) + 1),
             fill=BOX_COLOR,
-            font=("Courier New", 10, "bold"))
+            font=("Courier New", 9, "bold"))
 
         orig_box = {
             "x1": int(cx0 / scale), "y1": int(cy0 / scale),
@@ -173,6 +194,11 @@ def open_annotator(parent, image_path: str) -> list:
     canvas.bind("<ButtonPress-1>",   on_press)
     canvas.bind("<B1-Motion>",       on_drag)
     canvas.bind("<ButtonRelease-1>", on_release)
+
+    # Scroll desteği (mouse wheel)
+    def on_mousewheel(e):
+        canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+    canvas.bind("<MouseWheel>", on_mousewheel)
 
     # ── Kontrol butonları ────────────────────────────────────────────────────
     def undo():
@@ -199,32 +225,39 @@ def open_annotator(parent, image_path: str) -> list:
         win.destroy()
 
     tk.Button(left_btns, text="↩  Geri Al",
-              font=("Courier New", 10, "bold"),
+              font=("Courier New", 9, "bold"),
               bg=BG_INPUT, fg=T_PRI, relief="flat",
-              padx=14, pady=6, cursor="hand2",
-              command=undo).pack(side="left", padx=(0, 6))
+              padx=10, pady=5, cursor="hand2",
+              command=undo).pack(side="left", padx=(0, 4))
 
     tk.Button(left_btns, text="✕  Temizle",
-              font=("Courier New", 10, "bold"),
+              font=("Courier New", 9, "bold"),
               bg=BG_INPUT, fg=C_ERR, relief="flat",
-              padx=14, pady=6, cursor="hand2",
+              padx=10, pady=5, cursor="hand2",
               command=clear).pack(side="left")
 
     tk.Button(right_btns, text="İptal",
-              font=("Courier New", 10, "bold"),
+              font=("Courier New", 9, "bold"),
               bg=BG_INPUT, fg=T_MUT, relief="flat",
-              padx=14, pady=6, cursor="hand2",
-              command=cancel).pack(side="left", padx=(0, 8))
+              padx=10, pady=5, cursor="hand2",
+              command=cancel).pack(side="left", padx=(0, 6))
 
     btn_confirm = tk.Button(
         right_btns,
         text="✓  Onayla  →  Raporu Oluştur",
-        font=("Courier New", 11, "bold"),
+        font=("Courier New", 10, "bold"),
         bg=C_OK, fg="#FFFFFF", relief="flat",
-        padx=18, pady=6, cursor="hand2",
+        padx=14, pady=5, cursor="hand2",
         state="disabled",
         command=confirm)
     btn_confirm.pack(side="left")
+
+    # ── Pencere boyutunu içeriğe göre ayarla ─────────────────────────────────
+    extra_h = 40 + 24 + 50 + 20   # header + info + butonlar + padding
+    win_w   = min(disp_w, MAX_W) + 30
+    win_h   = min(disp_h, MAX_H) + extra_h
+    win.geometry(f"{win_w}x{win_h}")
+    win.minsize(500, 400)
 
     # ── Modal bekleme ────────────────────────────────────────────────────────
     win.transient(parent)
@@ -235,7 +268,7 @@ def open_annotator(parent, image_path: str) -> list:
     win.update_idletasks()
     pw = parent.winfo_rootx() + parent.winfo_width()  // 2
     ph = parent.winfo_rooty() + parent.winfo_height() // 2
-    win.geometry(f"+{pw - disp_w//2}+{ph - disp_h//2}")
+    win.geometry(f"{win_w}x{win_h}+{pw - win_w//2}+{ph - win_h//2}")
 
     parent.wait_window(win)
 
@@ -258,7 +291,7 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     root.title("Test Host")
-    root.geometry("1x1+0+0")   # görünmez ama var — Toplevel'e parent lazım
+    root.geometry("1x1+0+0")
 
     boxes = open_annotator(root, image_path)
 

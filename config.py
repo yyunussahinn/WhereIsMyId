@@ -1,4 +1,4 @@
-# WHERE IS MY ID — config.py  (28.04.2026 14:10)
+# WHERE IS MY ID — config.py  (03.05.2026 13:39)
 PLATFORM = "ios"
 BLACKLIST_IDS = ["text-input-flat-label-inactive", "text-input-underline", "right-icon-adornment-container", "right-icon-adornment", "text-input-flat", "statusBarBackground", "content", "action_bar_root", "navigationBarBackground", "exo_content_frame"]
 OUTPUT_FORMAT = "word+excel+json"
