@@ -1,5 +1,5 @@
 """
-smart_checker.py
+smart_checker.py — v4.2
 ────────────────────────────────────────────────────────────────
 Akıllı Tarama modülü.
 
@@ -7,10 +7,10 @@ Görevler:
   1. Appium'a bağlan, ekran görüntüsü al, elementleri topla (rect dahil)
   2. Driver'ı kapat
   3. claude_filter ile annotation kutularını eşleştir
-  4. Word + Excel raporu üret
+  4. shared.py fonksiyonlarıyla Word + Excel + JSON raporu üret
 
-app.py'deki SmartTab tarafından thread içinde çağrılır.
-Her log satırı log_cb(text) callback'i ile GUI'ye iletilir.
+v4.2: generate_reports artık shared.generate_word / generate_excel / generate_json
+      kullanıyor → tam tarama ile aynı çıktı formatı.
 """
 
 import time
@@ -18,14 +18,11 @@ import os
 from datetime import datetime
 from collections import Counter
 
-from claude_filter import filter_elements_by_boxes
-
 
 # ════════════════════════════════════════════════════════════════════════════
 #  PLATFORM SABITLERI
 # ════════════════════════════════════════════════════════════════════════════
 
-# iOS element tipleri
 IOS_ALWAYS = [
     "XCUIElementTypeTextField",
     "XCUIElementTypeSecureTextField",
@@ -34,7 +31,6 @@ IOS_ALWAYS = [
 ]
 IOS_CONDITIONAL = ["XCUIElementTypeOther"]
 
-# Android element tipleri
 AND_ALWAYS = [
     "android.widget.EditText",
     "android.widget.Button",
@@ -54,26 +50,15 @@ AND_CONDITIONAL = [
 ]
 AND_RESOURCE_ONLY = ["android.widget.TextView"]
 
-# Status sabitleri
+# Status sabitleri — shared.py ile aynı
 STATUS_UNIQUE    = "ID Var"
 STATUS_DUPLICATE = "Duplicate"
 STATUS_MISSING   = "ID Yok"
 STATUS_UNDEFINED = "Undefined ID"
-NEW_STATUS_WAITING = "ID Eklenecek (Waiting Dev)"
-
-STATUS_PALETTE = {
-    STATUS_MISSING:   {"hdr": "C00000", "row": "FFDAD6", "alt": "FCEBEB", "txt": "501313"},
-    STATUS_UNDEFINED: {"hdr": "C55A11", "row": "FCE4D6", "alt": "FFF3EC", "txt": "412402"},
-    STATUS_DUPLICATE: {"hdr": "7B3F00", "row": "FAEEDA", "alt": "FEF6E4", "txt": "3B1F00"},
-    STATUS_UNIQUE:    {"hdr": "375623", "row": "E2EFDA", "alt": "EAF3DE", "txt": "173404"},
-}
-NEW_STATUS_COLOR = {
-    "hdr": "843C0C", "row": "FDE9D9", "alt": "FEF3EC", "txt": "843C0C",
-}
 
 
 def get_new_status(status: str) -> str:
-    return "" if status == STATUS_UNIQUE else NEW_STATUS_WAITING
+    return "" if status == STATUS_UNIQUE else "ID Eklenecek (Waiting Dev)"
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -85,10 +70,7 @@ def connect_and_capture(platform: str, profile: dict,
                          log_cb=print) -> tuple[list, str]:
     """
     Appium'a bağlan, screenshot al, elementleri topla, driver'ı kapat.
-
     Dönüş: (all_elements, detected_page)
-    Her element dict'inde "rect" anahtarı var:
-      {"x": int, "y": int, "width": int, "height": int}
     """
     from appium import webdriver
     from appium.webdriver.common.appiumby import AppiumBy
@@ -120,7 +102,7 @@ def connect_and_capture(platform: str, profile: dict,
     time.sleep(3)
 
     log_cb("📸 Ekran görüntüsü alınıyor...")
-    os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(screenshot_path)), exist_ok=True)
     driver.get_screenshot_as_file(screenshot_path)
     log_cb(f"   → {screenshot_path}")
 
@@ -132,13 +114,11 @@ def connect_and_capture(platform: str, profile: dict,
     sw = screen_size["width"]
     sh = screen_size["height"]
 
-    all_elements = _collect_elements(driver, platform, detected_page, sw, sh,
-                                      AppiumBy, log_cb)
+    all_elements = _collect_elements(driver, platform, detected_page, sw, sh, log_cb)
 
     driver.quit()
     log_cb("✅ Driver kapatıldı.")
 
-    # Özet
     counts = Counter(e["status"] for e in all_elements)
     log_cb(f"{'='*40}")
     log_cb(f"✅ Unique    : {counts[STATUS_UNIQUE]}")
@@ -170,20 +150,17 @@ def _get_detected_page(driver, platform: str) -> str:
 
 
 def _collect_elements(driver, platform: str, detected_page: str,
-                       sw: int, sh: int, AppiumBy, log_cb) -> list:
+                       sw: int, sh: int, log_cb) -> list:
     from appium.webdriver.common.appiumby import AppiumBy as AB
 
     candidates   = []
     all_elements = []
 
     if platform == "ios":
-        all_elements, candidates = _collect_ios(
-            driver, detected_page, sw, sh, AB)
+        all_elements, candidates = _collect_ios(driver, detected_page, sw, sh, AB)
     else:
-        all_elements, candidates = _collect_android(
-            driver, detected_page, AB)
+        all_elements, candidates = _collect_android(driver, detected_page, AB)
 
-    # Duplicate kontrolü
     name_counts = Counter(r["acc_id"] for r in candidates)
     for row in candidates:
         row["status"] = (STATUS_UNIQUE
@@ -240,7 +217,6 @@ def _collect_ios(driver, detected_page, sw, sh, AppiumBy):
     for etype in IOS_ALWAYS + IOS_CONDITIONAL:
         elems = driver.find_elements(AB.XPATH, f"//{etype}")
         for el in elems:
-            # interaktif kontrolü
             if etype in IOS_CONDITIONAL:
                 if el.get_attribute("accessible") != "true":
                     continue
@@ -353,245 +329,75 @@ def _collect_android(driver, detected_page, AppiumBy):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  RAPOR ÜRETIMI
+#  RAPOR ÜRETIMI — shared.py fonksiyonları kullanılıyor (tam tarama ile aynı)
 # ════════════════════════════════════════════════════════════════════════════
 
-def generate_reports(elements: list, page_name: str,
-                     output_dir: str, platform: str,
-                     screenshot_path: str, output_fmt: str,
-                     log_cb=print):
-    """Word ve/veya Excel raporu üret."""
+def generate_reports(
+    elements:          list,
+    page_name:         str,
+    output_dir:        str,
+    platform:          str,
+    screenshot_path:   str,
+    output_fmt:        str,
+    document_sections: list = None,
+    log_cb=print,
+):
+    """
+    Word / Excel / JSON raporu üret.
+    shared.py'deki generate_word, generate_excel, generate_json kullanılır
+    → tam tarama ile birebir aynı çıktı formatı ve JSON yapısı.
+    """
+    import shared as sh
 
     os.makedirs(output_dir, exist_ok=True)
-    plat_label = "iOS" if platform == "ios" else "ANDROID"
+
+    if document_sections is None:
+        document_sections = ["unique", "undefined", "duplicate", "missing"]
+
     plat_suffix = "IOS" if platform == "ios" else "Android"
-    id_col_name = "Accessibility ID" if platform == "ios" else "Resource ID"
 
     word_file  = os.path.join(output_dir, f"{page_name}_smart_{plat_suffix}.docx")
     excel_file = os.path.join(output_dir, f"Smart_Report_{plat_suffix}.xlsx")
+    json_file  = os.path.join(output_dir, f"{page_name}_smart_{platform}.json")
 
-    if output_fmt in ("word", "word+excel"):
-        _gen_word(elements, page_name, plat_label, id_col_name,
-                  word_file, screenshot_path, log_cb)
+    fmt_parts = set(output_fmt.split("+"))
 
-    if output_fmt in ("excel", "word+excel"):
-        _gen_excel(elements, page_name, plat_label, id_col_name,
-                   excel_file, screenshot_path, log_cb)
-
-
-def _gen_word(elements, page_name, plat_label, id_col_name,
-              word_file, screenshot_path, log_cb):
-    from docx import Document
-    from docx.shared import RGBColor, Inches, Pt
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-    from PIL import Image as PILImage
-
-    def add_shading(cell, hex_color):
-        shading = OxmlElement("w:shd")
-        shading.set(qn("w:fill"), hex_color)
-        shading.set(qn("w:color"), "auto")
-        shading.set(qn("w:val"), "clear")
-        cell._tc.get_or_add_tcPr().append(shading)
-
-    def hex_to_rgb(h):
-        return RGBColor(*bytes.fromhex(h))
-
-    COLS     = ["Element ID", "Page", "Type", "Label / Text",
-                "Value", id_col_name, "Status", "New Status"]
-    COL_KEYS = ["element_id", "page", "type", "label",
-                "value", "acc_id", "status", "new_status"]
-    WIDTHS   = [Inches(1.2), Inches(0.8), Inches(0.9), Inches(1.3),
-                Inches(0.9), Inches(1.4), Inches(0.8), Inches(1.5)]
-
-    if os.path.exists(word_file):
-        os.remove(word_file)
-    doc = Document()
-
-    title = doc.add_heading(
-        f"Smart Accessibility Report — {page_name}", level=1)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    dp = doc.add_paragraph(
-        f"Tarih: {datetime.now().strftime('%d.%m.%Y %H:%M')}  |  Platform: {plat_label}")
-    dp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph("")
-
-    if elements:
-        table = doc.add_table(rows=1, cols=len(COLS))
-        table.style = "Table Grid"
-        hdr = table.rows[0].cells
-        for i, col_name in enumerate(COLS):
-            hdr[i].text = col_name
-            run = hdr[i].paragraphs[0].runs[0]
-            run.bold = True
-            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            hc = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
-            add_shading(hdr[i], hc)
-            hdr[i].width = WIDTHS[i]
-
-        for idx, elem in enumerate(elements):
-            elem_id    = f"{page_name}_smart_{idx + 1}"
-            status     = elem.get("status", STATUS_MISSING)
-            new_status = get_new_status(status)
-            palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
-            row_hex    = palette["row"] if idx % 2 == 0 else palette["alt"]
-            ns_hex     = NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"]
-
-            row_cells = table.add_row().cells
-            for i, key in enumerate(COL_KEYS):
-                val = (elem_id if key == "element_id"
-                       else new_status if key == "new_status"
-                       else elem.get(key, "") or "")
-                row_cells[i].text  = val
-                row_cells[i].width = WIDTHS[i]
-                add_shading(row_cells[i], ns_hex if key == "new_status" else row_hex)
-                runs = row_cells[i].paragraphs[0].runs
-                if runs:
-                    if key == "status":
-                        runs[0].bold = True
-                        runs[0].font.color.rgb = hex_to_rgb(palette["txt"])
-                    elif key == "new_status" and new_status:
-                        runs[0].bold = True
-                        runs[0].font.color.rgb = hex_to_rgb(NEW_STATUS_COLOR["txt"])
-
-    doc.add_paragraph("")
-
-    if os.path.exists(screenshot_path):
-        doc.add_heading("📸 Ekran Görüntüsü", level=2)
-        with PILImage.open(screenshot_path) as img:
-            w_px, _ = img.size
-        w_in = min(w_px / 96, 5.5)
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.add_run().add_picture(screenshot_path, width=Inches(w_in))
-        cap = doc.add_paragraph(f"{page_name} sayfası ekran görüntüsü")
-        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        cap.runs[0].font.size = Pt(9)
-        cap.runs[0].italic    = True
-
-    doc.save(word_file)
-    log_cb(f"📄 Word kaydedildi: {word_file}")
-
-
-def _gen_excel(elements, page_name, plat_label, id_col_name,
-               excel_file, screenshot_path, log_cb):
-    import openpyxl
-    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
-    from openpyxl.drawing.image import Image as XLImage
-    from PIL import Image as PILImage
-
-    THIN   = Side(style="thin")
-    BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-    CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    LEFT   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
-
-    COLS     = ["Element ID", "Page", "Type", "Label / Text",
-                "Value", id_col_name, "Status", "New Status"]
-    COL_KEYS = ["element_id", "page", "type", "label",
-                "value", "acc_id", "status", "new_status"]
-    WIDTHS   = [22, 16, 16, 26, 18, 32, 14, 28]
-
-    DATA_COL = len(COLS)
-    IMG_COL  = DATA_COL + 2
-    IMG_LTR  = get_column_letter(IMG_COL)
-
-    wb = (openpyxl.load_workbook(excel_file)
-          if os.path.exists(excel_file) else openpyxl.Workbook())
-    if not os.path.exists(excel_file) and "Sheet" in wb.sheetnames:
-        del wb["Sheet"]
-    if page_name in wb.sheetnames:
-        del wb[page_name]
-    ws = wb.create_sheet(title=page_name)
-
-    # Başlık
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=DATA_COL)
-    c = ws.cell(row=1, column=1,
-                value=f"{page_name}  |  {datetime.now().strftime('%d.%m.%Y %H:%M')}  |  {plat_label}  |  Smart")
-    c.font      = Font(bold=True, color="FFFFFF", size=13)
-    c.fill      = PatternFill("solid", fgColor="1F3864")
-    c.alignment = CENTER
-    c.border    = BORDER
-    ws.row_dimensions[1].height = 26
-
-    # Kolon başlıkları
-    for ci, col_name in enumerate(COLS, 1):
-        c = ws.cell(row=2, column=ci, value=col_name)
-        c.font = Font(bold=True, color="FFFFFF", size=10)
-        hc = NEW_STATUS_COLOR["hdr"] if col_name == "New Status" else "2C2C2A"
-        c.fill = PatternFill("solid", fgColor=hc)
-        c.alignment = CENTER
-        c.border    = BORDER
-    ws.row_dimensions[2].height = 18
-    ws.freeze_panes = "A3"
-
-    # Veri
-    for idx, elem in enumerate(elements):
-        elem_id    = f"{page_name}_smart_{idx + 1}"
-        status     = elem.get("status", STATUS_MISSING)
-        new_status = get_new_status(status)
-        row_num    = idx + 3
-        palette    = STATUS_PALETTE.get(status, STATUS_PALETTE[STATUS_MISSING])
-        rf = PatternFill("solid", fgColor=palette["row"] if idx % 2 == 0 else palette["alt"])
-        nf = PatternFill("solid", fgColor=NEW_STATUS_COLOR["row"] if idx % 2 == 0 else NEW_STATUS_COLOR["alt"])
-
-        for ci, key in enumerate(COL_KEYS, 1):
-            val = (elem_id if key == "element_id"
-                   else new_status if key == "new_status"
-                   else elem.get(key, "") or "")
-            c = ws.cell(row=row_num, column=ci, value=val)
-            c.border = BORDER
-            if key == "new_status":
-                c.fill = nf
-                c.font = Font(bold=bool(new_status), color=NEW_STATUS_COLOR["txt"], size=10)
-                c.alignment = CENTER
-            elif key == "status":
-                c.fill = rf
-                c.font = Font(bold=True, color=palette["txt"], size=10)
-                c.alignment = CENTER
-            elif key == "element_id":
-                c.fill = rf
-                c.font = Font(bold=True, size=10)
-                c.alignment = CENTER
-            else:
-                c.fill = rf
-                c.font = Font(size=10)
-                c.alignment = LEFT
-        ws.row_dimensions[row_num].height = 16
-
-    for ci, w in enumerate(WIDTHS, 1):
-        ws.column_dimensions[get_column_letter(ci)].width = w
-
-    # Screenshot
-    if os.path.exists(screenshot_path):
-        with PILImage.open(screenshot_path) as img:
-            ow, oh = img.size
-        tw = 300
-        th = int(oh * (tw / ow))
-        tmp = screenshot_path.replace(".png", "_xl_tmp.png")
-        with PILImage.open(screenshot_path) as img:
-            img.resize((tw, th), PILImage.LANCZOS).save(tmp, "PNG")
-
-        ws.column_dimensions[get_column_letter(DATA_COL + 1)].width = 2
-        ws.merge_cells(start_row=1, start_column=IMG_COL,
-                       end_row=2,   end_column=IMG_COL)
-        hc = ws.cell(row=1, column=IMG_COL, value=f"📸 {page_name}")
-        hc.font = Font(bold=True, color="FFFFFF", size=10)
-        hc.fill = PatternFill("solid", fgColor="1F3864")
-        hc.alignment = CENTER
-        hc.border    = BORDER
-        ws.column_dimensions[IMG_LTR].width = 42
-
-        xi = XLImage(tmp)
-        xi.width = tw; xi.height = th
-        ws.add_image(xi, f"{IMG_LTR}3")
-
-    wb.save(excel_file)
-    log_cb(f"📊 Excel kaydedildi: {excel_file}  (sheet: {page_name})")
-
-    if os.path.exists(screenshot_path):
+    if "word" in fmt_parts:
         try:
-            os.remove(tmp)
-        except Exception:
-            pass
+            sh.generate_word(
+                all_elements=elements,
+                page_name=page_name,
+                word_file=word_file,
+                document_sections=document_sections,
+                platform=platform,
+                screenshot_path=screenshot_path,
+            )
+            log_cb(f"📄 Word kaydedildi: {word_file}")
+        except Exception as ex:
+            log_cb(f"⚠️  Word hatası: {ex}", )
+
+    if "excel" in fmt_parts:
+        try:
+            sh.generate_excel(
+                all_elements=elements,
+                page_name=page_name,
+                excel_file=excel_file,
+                document_sections=document_sections,
+                platform=platform,
+                screenshot_path=screenshot_path,
+            )
+            log_cb(f"📊 Excel kaydedildi: {excel_file}")
+        except Exception as ex:
+            log_cb(f"⚠️  Excel hatası: {ex}")
+
+    if "json" in fmt_parts:
+        try:
+            sh.generate_json(
+                elements=elements,
+                page_name=page_name,
+                json_file=json_file,
+                platform=platform,
+            )
+            log_cb(f"🗂  JSON kaydedildi: {json_file}")
+        except Exception as ex:
+            log_cb(f"⚠️  JSON hatası: {ex}")
