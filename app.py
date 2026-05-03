@@ -1,22 +1,10 @@
 """
-Where is My Id — GUI  v4.2
+Where is My Id — GUI  v4.3
 ──────────────────────────────────────────────────────────────
-Özellikler:
-  1. Platform toggle  → yalnızca ilgili ayar paneli görünür
-                        (Blacklist sadece Android'de)
-  2. Build Summary    → dosya gezginiyle Excel seç + ayrı Çalıştır butonu
-  3. Branding         → "Where is My Id"
-  4. Profil sistemi   → iOS / Android için ayrı adlandırılmış profil
-                        (kaydet / yeni / sil)
-  5. Sayfa adı        → footer'daki kutucuğa önceden girilir,
-                        script başladığında otomatik gönderilir
-  7. Profil isimleri  → PIA iOS, KZR Android vb.
-  8. Çıktı formatı    → Word / Excel / JSON checkbox (en az biri seçili olmalı)
-  9. v4.2: Smart Tarama tab'ı sol paneli Tam Tarama ile aynı;
-           tab değiştirince footer butonu değişir (CALISTIR ↔ Bağlan & Görüntü Al)
-
-Gereksinimler:
-  pip install customtkinter pillow
+Düzeltmeler (v4.3):
+  - Footer buton sırası sabitlendi: aksiyon butonu + DURDUR
+    Tab değişiminde sıra asla bozulmuyor.
+  - annotator.py buton renkleri düzeltildi (macOS uyumlu).
 """
 
 import customtkinter as ctk
@@ -432,45 +420,51 @@ class App(ctk.CTk):
                      font=FS, text_color="black").pack(side="left", padx=4)
         self.badge = Badge(hdr)
         self.badge.pack(side="right", padx=20)
-        ctk.CTkLabel(hdr, text="v4.2", font=FB, text_color="black").pack(side="right", padx=4)
+        ctk.CTkLabel(hdr, text="v4.3", font=FB, text_color="black").pack(side="right", padx=4)
 
     def _mk_footer(self):
         foot = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=0, height=66)
         foot.pack(fill="x", side="bottom")
         foot.pack_propagate(False)
 
-        # Sol: aktif profil etiketi + CALISTIR / BAĞLAN / DURDUR
+        # ── Sol: profil etiketi + aksiyon butonları ──────────────────────────
         lf = ctk.CTkFrame(foot, fg_color="transparent")
         lf.pack(side="left", padx=(12, 0), pady=10)
 
         self.lbl_prof = ctk.CTkLabel(lf, text="", font=FS, text_color=T_MUT)
         self.lbl_prof.pack(side="left", padx=(4, 12))
 
-        # "CALISTIR" butonu (Tam Tarama)
+        # --- FIX: Her iki aksiyon butonu da aynı parent'ta (lf) ---
+        # Sıralama her zaman: [aksiyon_btn]  [DURDUR]
+        # Tab değişiminde sadece aksiyon butonu swap edilir,
+        # DURDUR her zaman en sağda sabit kalır.
+
+        # CALISTIR (Tam Tarama)
         self.btn_run = ctk.CTkButton(
             lf, text="▶  CALISTIR", font=FL, height=44, width=150,
-            fg_color="#1a8242", hover_color="#1a8242",
+            fg_color="#1a8242", hover_color="#145c30",
             text_color="#FFFFFF", corner_radius=8,
             command=self._run_checker)
-        self.btn_run.pack(side="left", padx=(0, 6))
 
-        # "BAĞLAN & GÖRÜNTÜ AL" butonu (Smart Tarama) — başta gizli
+        # BAĞLAN & GÖRÜNTÜ AL (Smart Tarama)
         self.btn_smart_connect = ctk.CTkButton(
             lf, text="📱  BAĞLAN & GÖRÜNTÜ AL", font=FL, height=44, width=220,
             fg_color=ACCENT_IOS, hover_color=ACCENT_IOS_DK,
             text_color="#FFFFFF", corner_radius=8,
             command=self._smart_connect)
-        # başta gizli — tab değişince görünür olur
 
+        # DURDUR — her iki tab için ortak, her zaman aksiyon butonunun sağında
         self.btn_stop = ctk.CTkButton(
             lf, text="■  DURDUR", font=FL, height=44, width=120,
-            fg_color="#7B1515", hover_color="#7B1515",
+            fg_color="#7B1515", hover_color="#5a0f0f",
             text_color="#FFFFFF", corner_radius=8,
             command=self._stop_proc)
-        self.btn_stop.pack(side="left")
-        self.btn_stop.configure(state="disabled")
 
-        # Sağ: Excel seç + Build Summary
+        # Başlangıçta Tam Tarama layout: [CALISTIR] [DURDUR]
+        # _switch_tab("tam") bu düzeni kuracak
+        # (burada pack çağırmıyoruz — _switch_tab halleder)
+
+        # ── Sağ: Excel seç + Build Summary ──────────────────────────────────
         rf = ctk.CTkFrame(foot, fg_color="transparent")
         rf.pack(side="right", padx=12, pady=10)
 
@@ -491,21 +485,20 @@ class App(ctk.CTk):
                       command=self._pick_excel).pack(side="left", padx=(4, 4), pady=8)
         self.btn_summary = ctk.CTkButton(
             sb, text="📊  Merge Sheets", font=FL, height=36, width=155,
-            fg_color="#1a8242", hover_color="#1a8242",
+            fg_color="#1a8242", hover_color="#145c30",
             text_color="#FFFFFF", corner_radius=6,
             command=self._run_summary)
         self.btn_summary.pack(side="left", padx=(0, 8), pady=8)
 
     def _mk_body(self):
-        # Ana çerçeve: sol panel (sabit) + sağ sekme içeriği
         self._body_frame = ctk.CTkFrame(self, fg_color="#F5F0E8", corner_radius=0)
         self._body_frame.pack(fill="both", expand=True, padx=12, pady=(8, 4))
         self._body_frame.columnconfigure(0, weight=0)
         self._body_frame.columnconfigure(1, weight=1)
-        self._body_frame.rowconfigure(0, weight=0)   # tab butonları
-        self._body_frame.rowconfigure(1, weight=1)   # içerik
+        self._body_frame.rowconfigure(0, weight=0)
+        self._body_frame.rowconfigure(1, weight=1)
 
-        # ── Özel tab butonları (satır 0) ─────────────────────────────────────
+        # ── Tab butonları ─────────────────────────────────────────────────────
         tab_bar = ctk.CTkFrame(self._body_frame, fg_color="#FFFFFF",
                                corner_radius=8, height=42)
         tab_bar.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
@@ -525,7 +518,7 @@ class App(ctk.CTk):
             command=lambda: self._switch_tab("smart"))
         self.btn_tab_smart.pack(side="left", padx=(0, 4), pady=4)
 
-        # ── Sol panel — ortak, her iki tab için ──────────────────────────────
+        # ── Sol panel — ortak ─────────────────────────────────────────────────
         self.left_panel = ctk.CTkScrollableFrame(
             self._body_frame, width=430, fg_color="#FFFFFF",
             corner_radius=10, scrollbar_button_color="#D8D0C0")
@@ -541,15 +534,19 @@ class App(ctk.CTk):
         # ── Sağ: Smart Tarama log paneli ──────────────────────────────────────
         self.right_smart = ctk.CTkFrame(self._body_frame, fg_color="#F5F0E8",
                                          corner_radius=10)
-        # başta gizli
         self._mk_smart_log(self.right_smart)
 
-        # Başlangıç: Tam Tarama aktif
+        # Başlangıç tab düzenini kur
         self._switch_tab("tam", init=True)
 
-    # ── Tab değiştirme ────────────────────────────────────────────────────────
+    # ── Tab değiştirme — FIX ─────────────────────────────────────────────────
     def _switch_tab(self, tab: str, init: bool = False):
         self._active_tab = tab
+
+        # Her iki aksiyon butonunu önce gizle
+        self.btn_run.pack_forget()
+        self.btn_smart_connect.pack_forget()
+        self.btn_stop.pack_forget()
 
         if tab == "tam":
             # Tab buton renkleri
@@ -558,11 +555,13 @@ class App(ctk.CTk):
             self.btn_tab_smart.configure(fg_color=BG_INPUT, hover_color="#E8E0D0",
                                           text_color=T_MUT)
             # Sağ panel
-            self.right_smart.grid_remove()
+            if not init:
+                self.right_smart.grid_remove()
             self.right_tam.grid(row=1, column=1, sticky="nsew")
-            # Footer butonları
-            self.btn_smart_connect.pack_forget()
+
+            # Footer: [CALISTIR] [DURDUR]  — sabit sıra
             self.btn_run.pack(side="left", padx=(0, 6))
+            self.btn_stop.pack(side="left")
 
         else:  # smart
             self.btn_tab_smart.configure(fg_color=ACCENT_IOS, hover_color=ACCENT_IOS_DK,
@@ -572,19 +571,18 @@ class App(ctk.CTk):
             # Sağ panel
             self.right_tam.grid_remove()
             self.right_smart.grid(row=1, column=1, sticky="nsew")
-            # Footer butonları
-            self.btn_run.pack_forget()
-            self.btn_smart_connect.pack(side="left", padx=(0, 6))
 
-    # ── Smart connect (footer butonu) ─────────────────────────────────────────
+            # Footer: [BAĞLAN & GÖRÜNTÜ AL] [DURDUR]  — sabit sıra
+            self.btn_smart_connect.pack(side="left", padx=(0, 6))
+            self.btn_stop.pack(side="left")
+
+    # ── Smart connect ─────────────────────────────────────────────────────────
     def _smart_connect(self):
-        """Smart tab'daki bağlan işlemini başlat."""
         if hasattr(self, '_smart_tab_ref') and self._smart_tab_ref:
             self._smart_tab_ref.run_connect_from_footer()
 
     # ── Smart log paneli ──────────────────────────────────────────────────────
     def _mk_smart_log(self, p):
-        """Smart tarama için sağ taraf log paneli — SmartTab logic'ini barındırır."""
         p.rowconfigure(1, weight=1)
         p.rowconfigure(2, weight=0)
         p.rowconfigure(3, weight=0)
@@ -596,7 +594,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(hdr, text="KONSOL ÇIKTISI  [Smart Tarama]",
                      font=FB, text_color="green").pack(side="left", padx=14)
         ctk.CTkButton(hdr, text="Temizle", font=FS, width=70, height=24,
-                      fg_color="#7B1515", hover_color="#7B1515",
+                      fg_color="#7B1515", hover_color="#5a0f0f",
                       text_color="white", corner_radius=6,
                       command=self._clear_smart_log).pack(side="right", padx=10, pady=5)
 
@@ -627,7 +625,7 @@ class App(ctk.CTk):
         spe.bind("<Return>", lambda e: self._smart_submit_page())
         ctk.CTkButton(self.smart_page_frame, text="▶  Raporu Oluştur",
                       font=FL, height=32, width=160,
-                      fg_color="green", hover_color="green",
+                      fg_color="green", hover_color="#145c30",
                       text_color=BG_MAIN, corner_radius=6,
                       command=self._smart_submit_page).pack(side="left", padx=10, pady=10)
 
@@ -756,7 +754,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(hdr, text="KONSOL CIKTISI",
                      font=FB, text_color="green").pack(side="left", padx=14)
         ctk.CTkButton(hdr, text="Temizle", font=FS, width=70, height=24,
-                      fg_color="#7B1515", hover_color="#7B1515",
+                      fg_color="#7B1515", hover_color="#5a0f0f",
                       text_color="white", corner_radius=6,
                       command=self._clear_log).pack(side="right", padx=10, pady=5)
         self.log_box = ctk.CTkTextbox(
@@ -785,7 +783,7 @@ class App(ctk.CTk):
         pe.bind("<Return>", lambda e: self._submit_page())
         ctk.CTkButton(self.page_input_frame, text="Gonder",
                       font=FL, height=32, width=90,
-                      fg_color="green", hover_color="green",
+                      fg_color="green", hover_color="#145c30",
                       text_color=BG_MAIN, corner_radius=6,
                       command=self._submit_page).pack(side="left", padx=10, pady=10)
 
@@ -799,13 +797,13 @@ class App(ctk.CTk):
         self.ow_label.pack(side="left", padx=(14, 12), pady=10)
         ctk.CTkButton(self.ow_frame, text="✓  Evet (Uzerine Yaz)",
                       font=FL, height=32, width=190,
-                      fg_color="#2D6A2D", hover_color="#2D6A2D",
+                      fg_color="#2D6A2D", hover_color="#1a5220",
                       text_color="white", corner_radius=6,
                       command=lambda: self._submit_overwrite(True)
                       ).pack(side="left", pady=10)
         ctk.CTkButton(self.ow_frame, text="✗  Hayir (Iptal)",
                       font=FL, height=32, width=150,
-                      fg_color="#A32020", hover_color="#A32020",
+                      fg_color="#A32020", hover_color="#7B1515",
                       text_color="white", corner_radius=6,
                       command=lambda: self._submit_overwrite(False)
                       ).pack(side="left", padx=(8, 0), pady=10)
@@ -927,9 +925,10 @@ class App(ctk.CTk):
             self.btn_summary.configure(state="disabled")
             self.badge.set("running")
         else:
-            self.btn_run.configure(state="normal", fg_color="#1a8242", text_color="#FFFFFF")
+            self.btn_run.configure(state="normal", fg_color="#1a8242",
+                                   hover_color="#145c30", text_color="#FFFFFF")
             self.btn_smart_connect.configure(state="normal", fg_color=ACCENT_IOS,
-                                              text_color="#FFFFFF")
+                                              hover_color=ACCENT_IOS_DK, text_color="#FFFFFF")
             self.btn_stop.configure(state="disabled")
             self.btn_summary.configure(state="normal")
 
@@ -1152,7 +1151,6 @@ class App(ctk.CTk):
         if self._proc:
             self._proc.terminate()
             self._log("Process durduruldu.", "warn")
-        # Smart tab'ı da durdur
         if hasattr(self, '_smart_tab_ref') and self._smart_tab_ref:
             self._smart_tab_ref.stop()
         self._set_busy(False)
