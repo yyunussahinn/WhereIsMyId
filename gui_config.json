@@ -1,5 +1,5 @@
 {
-  "platform": "ios",
+  "platform": "android",
   "output_word": true,
   "output_excel": true,
   "output_json": true,
@@ -12,6 +12,8 @@
     "missing"
   ],
   "blacklist_ids": [
+    "LinearLayout",
+    "FrameLayout",
     "text-input-flat-label-inactive",
     "text-input-underline",
     "right-icon-adornment-container",
